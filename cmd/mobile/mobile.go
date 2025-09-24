@@ -1,4 +1,4 @@
-package yourgamemobile
+package mobile
 
 import (
 	"github/brensch/game/pkg/game"
