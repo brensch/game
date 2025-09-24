@@ -11,24 +11,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Seq.setContext(getApplicationContext());
+        Seq.setContext(this);
         view = new EbitenView(this);
         setContentView(view);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (view != null) {
-            view.suspendGame();
-        }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (view != null) {
-            view.resumeGame();
-        }
     }
 }
