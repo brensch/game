@@ -1,6 +1,8 @@
 package mobile
 
 import (
+	"image/color"
+
 	"github/brensch/game/pkg/game"
 
 	"github.com/hajimehoshi/ebiten/v2/mobile"
@@ -8,8 +10,11 @@ import (
 
 func init() {
 	mobile.SetGame(&game.Game{
-		BallX: game.ScreenWidth / 2,
-		BallY: game.ScreenHeight / 2,
+		Balls: []game.Ball{{
+			X:     game.ScreenWidth / 2,
+			Y:     game.ScreenHeight / 2,
+			Color: color.RGBA{0, 0, 255, 255},
+		}},
 	})
 }
 

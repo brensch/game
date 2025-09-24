@@ -1,6 +1,7 @@
 package main
 
 import (
+	"image/color"
 	"log"
 
 	"github/brensch/game/pkg/game"
@@ -20,8 +21,14 @@ func main() {
 	}
 
 	g := &game.Game{
-		BallX: game.ScreenWidth / 2,
-		BallY: game.ScreenHeight / 2,
+		Balls: []game.Ball{{
+			X:     game.ScreenWidth / 2,
+			Y:     game.ScreenHeight / 2,
+			Color: color.RGBA{0, 0, 255, 255},
+		}},
+		TouchHoldFrames:        make(map[ebiten.TouchID]int),
+		TouchFrameCounters:     make(map[ebiten.TouchID]int),
+		TouchCurrentThresholds: make(map[ebiten.TouchID]int),
 	}
 
 	if err := ebiten.RunGame(g); err != nil {
