@@ -28,8 +28,58 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
+# Logs
 *.log
 tmp/
+
+# Ebiten build outputs
+game-sources.jar
+main.wasm
+game.aar
+wasm_exec.js
+
+# Android/Gradle
+android_app/app/build/
+android_app/build/
+android_app/.gradle/
+.gradle/
+*.apk
+*.aar
+!android_app/app/libs/*.aar  # Keep the AAR in libs if committed
+android_app/app/libs/game.aar  # But ignore the copied one
+
+# Android Studio
+*.iml
+.gradle/
+local.properties
+captures/
+*.jks
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+dist/
