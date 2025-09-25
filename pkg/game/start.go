@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"image/color"
 )
 
@@ -19,7 +20,7 @@ func (s *Start) GetColor() color.RGBA {
 
 // Process handles object interaction for start.
 func (s *Start) Process(position int, history [][]*Object, tick int, orientation Orientation) []*Change {
-	// fmt.Println("Start processing tick", tick, "history length", len(history))
+	fmt.Println("Start processing tick", tick, "history length", len(history))
 	if len(history) <= 3 {
 		// Emit one object per tick for first 3 ticks
 		var objType ObjectType
