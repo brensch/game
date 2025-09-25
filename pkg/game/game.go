@@ -1,6 +1,7 @@
 package game
 
 import (
+	"encoding/json"
 	"fmt"
 	"image/color"
 	"math/rand"
@@ -83,6 +84,7 @@ type GameState struct {
 	round             int
 	mousePressed      bool
 	pressX, pressY    int
+	running           bool
 }
 
 // Game implements ebiten.Game.
@@ -142,28 +144,6 @@ func NewGame() *Game {
 	return g
 }
 
-func applyChanges(changes []*Change, objects *[]*Object) {
-	for _, change := range changes {
-		if change.StartObject == nil {
-			// create
-			*objects = append(*objects, change.EndObject)
-		} else if change.EndObject == nil {
-			// delete
-			for i, obj := range *objects {
-				if obj == change.StartObject {
-					*objects = append((*objects)[:i], (*objects)[i+1:]...)
-					break
-				}
-			}
-		} else {
-			// update
-			change.StartObject.GridPosition = change.EndObject.GridPosition
-			change.StartObject.Type = change.EndObject.Type
-			change.StartObject.Effects = change.EndObject.Effects
-		}
-	}
-}
-
 func (g *Game) calculateLayout() {
 	g.topPanelHeight = topPanelHeight
 	g.foremanHeight = foremanHeight
@@ -215,7 +195,15 @@ func (g *Game) Update() error {
 	case PhaseBuild:
 		g.handleDragAndDrop()
 	case PhaseRun:
-		g.updateRun()
+		changes, _ := SimulateRun(g.state.machines)
+		for i, tickChanges := range changes {
+			fmt.Printf("Tick %d: %d changes\n", i, len(tickChanges))
+			for _, ch := range tickChanges {
+				changejson, _ := json.Marshal(ch)
+				fmt.Printf("  %s\n", string(changejson))
+			}
+		}
+		g.state.phase = PhaseBuild
 	}
 
 	// Check for "Start Run" button click
@@ -224,19 +212,7 @@ func (g *Game) Update() error {
 		// Simple button detection for "Start Run"
 		if cx > 250 && cx < g.screenWidth-30 && cy > g.bottomY+10 && cy < g.bottomY+10+g.bottomHeight-20 {
 			if g.state.phase == PhaseBuild {
-				changes, _ := SimulateRun(g.state.machines, g.state.round)
-				for i, tickChanges := range changes {
-					fmt.Printf("Tick %d: %d changes\n", i, len(tickChanges))
-					for _, ch := range tickChanges {
-						fmt.Printf("  %+v\n", ch)
-					}
-				}
 				g.state.phase = PhaseRun
-			} else {
-				g.state.phase = PhaseBuild
-				g.state.objects = nil // Clear objects
-				g.state.baseScore = 0 // Reset score
-				g.state.round = 1
 			}
 		}
 	}
@@ -297,6 +273,35 @@ func (g *Game) handleDragAndDrop() {
 		if ms != nil {
 			ms.Selected = true
 		}
+
+		// Check run button
+		runButtonX := 250
+		runButtonY := g.bottomY + 10
+		runButtonWidth := g.screenWidth - 30 - 250
+		runButtonHeight := g.bottomHeight - 20
+		if cx >= runButtonX && cx <= runButtonX+runButtonWidth && cy >= runButtonY && cy <= runButtonY+runButtonHeight {
+			if !g.state.running {
+				g.state.running = true
+				changes, _ := SimulateRun(g.state.machines)
+				for i, tickChanges := range changes {
+					fmt.Printf("Tick %d: %d changes\n", i, len(tickChanges))
+					for _, ch := range tickChanges {
+						startStr := "nil"
+						if ch.StartObject != nil {
+							startStr = fmt.Sprintf("pos %d type %d", ch.StartObject.GridPosition, ch.StartObject.Type)
+						}
+						endStr := "nil"
+						if ch.EndObject != nil {
+							endStr = fmt.Sprintf("pos %d type %d", ch.EndObject.GridPosition, ch.EndObject.Type)
+						}
+						fmt.Printf("  Change: Start %s -> End %s\n", startStr, endStr)
+					}
+				}
+				g.state.running = false
+				g.state.round++
+				g.state.run++
+			}
+		}
 	}
 
 	if g.state.mousePressed {
@@ -355,27 +360,6 @@ func (g *Game) handleDragAndDrop() {
 	}
 }
 
-func (g *Game) updateRun() {
-	var changes []*Change
-	for pos, ms := range g.state.machines {
-		if ms == nil || ms.Machine == nil {
-			continue
-		}
-		machineChanges := ms.Machine.Process(pos, [][]*Object{g.state.objects}, g.state.round, ms.Orientation)
-		changes = append(changes, machineChanges...)
-	}
-	applyChanges(changes, &g.state.objects)
-
-	// Remove invalid objects
-	for i := 0; i < len(g.state.objects); i++ {
-		obj := g.state.objects[i]
-		if obj.GridPosition < 0 || obj.GridPosition >= gridCols*gridRows {
-			g.state.objects = append(g.state.objects[:i], g.state.objects[i+1:]...)
-			i--
-		}
-	}
-}
-
 // Draw draws the game screen.
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{R: 40, G: 40, B: 40, A: 255})
@@ -415,9 +399,9 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 	// Start/Stop Run Button
 	runButtonColor := color.RGBA{R: 100, G: 200, B: 100, A: 255}
 	runButtonText := "Start Run"
-	if g.state.phase == PhaseRun {
-		runButtonColor = color.RGBA{R: 200, G: 100, B: 100, A: 255}
-		runButtonText = "Stop Run"
+	if g.state.running {
+		runButtonColor = color.RGBA{R: 200, G: 200, B: 100, A: 255}
+		runButtonText = "Running"
 	}
 	vector.DrawFilledRect(screen, 250, float32(g.bottomY+10), float32(g.screenWidth-30-250), float32(g.bottomHeight-20), runButtonColor, false)
 	ebitenutil.DebugPrintAt(screen, runButtonText, 260, g.bottomY+20)
