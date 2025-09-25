@@ -271,7 +271,7 @@ func (g *Game) Update() error {
 								}
 								nr := cr + dr
 								nc := cc + dc
-								if nr >= 0 && nr < gridRows && nc >= 0 && nc < gridCols {
+								if nr >= 1 && nr <= displayRows && nc >= 1 && nc <= displayCols {
 									npos := nr*gridCols + nc
 									if g.state.machines[npos] == nil {
 										candidates = append(candidates, npos)
