@@ -114,12 +114,12 @@ type GameState struct {
 
 // Game implements ebiten.Game.
 type Game struct {
-	state                                                                    *GameState
-	draggingMachine                                                          *MachineState
-	width, height                                                            int
+	state                                                        *GameState
+	draggingMachine                                              *MachineState
+	width, height                                                int
 	topPanelHeight, foremanHeight, availableHeight, bottomHeight int
-	topPanelY, foremanY, gridStartY, availableY, bottomY                     int
-	screenWidth, gridStartX                                                  int
+	topPanelY, foremanY, gridStartY, availableY, bottomY         int
+	screenWidth, gridStartX                                      int
 }
 
 func (g *Game) getSelectedMachine() *MachineState {
@@ -654,7 +654,7 @@ func (g *Game) drawObjects(screen *ebiten.Image) {
 
 func (g *Game) drawTooltips(screen *ebiten.Image) {
 	cx, cy := ebiten.CursorPosition()
-	
+
 	// Check for selected machine first
 	selected := g.getSelectedMachine()
 	if selected != nil {
@@ -679,7 +679,7 @@ func (g *Game) drawTooltips(screen *ebiten.Image) {
 			}
 		}
 	}
-	
+
 	// Check for hover on grid machines
 	if ms := g.getMachineAt(cx, cy); ms != nil {
 		col := (cx - g.gridStartX) / (cellSize + gridMargin)
@@ -689,7 +689,7 @@ func (g *Game) drawTooltips(screen *ebiten.Image) {
 		g.drawTooltip(screen, ms.Machine.GetDescription(), x, y-10)
 		return
 	}
-	
+
 	// Check for hover on available machines
 	for i, ms := range g.state.availableMachines {
 		x := g.gridStartX + i*(cellSize+gridMargin)
@@ -706,11 +706,11 @@ func (g *Game) drawTooltip(screen *ebiten.Image, text string, x, y int) {
 	textWidth := len(text) * 6 // rough estimate
 	boxWidth := textWidth + 20
 	boxHeight := 30
-	
+
 	// Position box above the point
 	boxX := x - boxWidth/2
 	boxY := y - boxHeight - 5
-	
+
 	// Ensure box stays on screen
 	if boxX < 10 {
 		boxX = 10
@@ -721,12 +721,12 @@ func (g *Game) drawTooltip(screen *ebiten.Image, text string, x, y int) {
 	if boxY < 10 {
 		boxY = y + 15 // show below if above goes off screen
 	}
-	
+
 	// Draw background
 	vector.DrawFilledRect(screen, float32(boxX), float32(boxY), float32(boxWidth), float32(boxHeight), color.RGBA{R: 0, G: 0, B: 0, A: 200}, false)
 	// Draw border
 	vector.StrokeRect(screen, float32(boxX), float32(boxY), float32(boxWidth), float32(boxHeight), 2, color.RGBA{R: 255, G: 255, B: 255, A: 255}, false)
-	
+
 	// Draw text
 	ebitenutil.DebugPrintAt(screen, text, boxX+10, boxY+8)
 }
