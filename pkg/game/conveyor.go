@@ -47,3 +47,8 @@ func (c *Conveyor) EmitEffects(game *Game, state *MachineState) []EffectEmission
 	// For now, no effects
 	return nil
 }
+
+// GetDescription returns the machine description.
+func (c *Conveyor) GetDescription() string {
+	return "Moves objects in the direction it's facing."
+}

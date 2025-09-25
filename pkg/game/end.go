@@ -36,3 +36,8 @@ func (e *End) EmitEffects(game *Game, state *MachineState) []EffectEmission {
 	// For now, no effects
 	return nil
 }
+
+// GetDescription returns the machine description.
+func (e *End) GetDescription() string {
+	return "Collects objects that reach it, scoring points based on their color."
+}

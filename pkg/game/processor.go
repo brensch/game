@@ -47,3 +47,8 @@ func (p *Processor) EmitEffects(game *Game, state *MachineState) []EffectEmissio
 	// For now, no effects
 	return nil
 }
+
+// GetDescription returns the machine description.
+func (p *Processor) GetDescription() string {
+	return "Transforms objects to the next color and moves them forward."
+}

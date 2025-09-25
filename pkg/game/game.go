@@ -117,7 +117,7 @@ type Game struct {
 	state                                                                    *GameState
 	draggingMachine                                                          *MachineState
 	width, height                                                            int
-	topPanelHeight, foremanHeight, gridHeight, availableHeight, bottomHeight int
+	topPanelHeight, foremanHeight, availableHeight, bottomHeight int
 	topPanelY, foremanY, gridStartY, availableY, bottomY                     int
 	screenWidth, gridStartX                                                  int
 }
@@ -503,6 +503,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawFactoryFloor(screen)
 	g.drawMachines(screen)
 	g.drawObjects(screen)
+	g.drawTooltips(screen)
 
 	// Draw the dragging machine on top
 	if g.draggingMachine != nil {
@@ -649,6 +650,85 @@ func (g *Game) drawObjects(screen *ebiten.Image) {
 		y := anim.StartY + (anim.EndY-anim.StartY)*progress
 		vector.DrawFilledCircle(screen, float32(x), float32(y), 10, anim.Color, false)
 	}
+}
+
+func (g *Game) drawTooltips(screen *ebiten.Image) {
+	cx, cy := ebiten.CursorPosition()
+	
+	// Check for selected machine first
+	selected := g.getSelectedMachine()
+	if selected != nil {
+		// Find position of selected machine
+		for pos, ms := range g.state.machines {
+			if ms == selected {
+				col := pos % gridCols
+				row := pos / gridCols
+				x := g.gridStartX + col*(cellSize+gridMargin) + cellSize/2
+				y := g.gridStartY + row*(cellSize+gridMargin)
+				g.drawTooltip(screen, selected.Machine.GetDescription(), x, y-10)
+				return
+			}
+		}
+		// Check available machines
+		for i, ms := range g.state.availableMachines {
+			if ms == selected {
+				x := g.gridStartX + i*(cellSize+gridMargin) + cellSize/2
+				y := g.availableY + cellSize
+				g.drawTooltip(screen, selected.Machine.GetDescription(), x, y+10)
+				return
+			}
+		}
+	}
+	
+	// Check for hover on grid machines
+	if ms := g.getMachineAt(cx, cy); ms != nil {
+		col := (cx - g.gridStartX) / (cellSize + gridMargin)
+		row := (cy - g.gridStartY) / (cellSize + gridMargin)
+		x := g.gridStartX + col*(cellSize+gridMargin) + cellSize/2
+		y := g.gridStartY + row*(cellSize+gridMargin)
+		g.drawTooltip(screen, ms.Machine.GetDescription(), x, y-10)
+		return
+	}
+	
+	// Check for hover on available machines
+	for i, ms := range g.state.availableMachines {
+		x := g.gridStartX + i*(cellSize+gridMargin)
+		y := g.availableY
+		if cx >= x && cx <= x+cellSize && cy >= y && cy <= y+cellSize {
+			g.drawTooltip(screen, ms.Machine.GetDescription(), x+cellSize/2, y+cellSize+10)
+			return
+		}
+	}
+}
+
+func (g *Game) drawTooltip(screen *ebiten.Image, text string, x, y int) {
+	// Measure text width (approximate)
+	textWidth := len(text) * 6 // rough estimate
+	boxWidth := textWidth + 20
+	boxHeight := 30
+	
+	// Position box above the point
+	boxX := x - boxWidth/2
+	boxY := y - boxHeight - 5
+	
+	// Ensure box stays on screen
+	if boxX < 10 {
+		boxX = 10
+	}
+	if boxX+boxWidth > g.screenWidth-10 {
+		boxX = g.screenWidth - boxWidth - 10
+	}
+	if boxY < 10 {
+		boxY = y + 15 // show below if above goes off screen
+	}
+	
+	// Draw background
+	vector.DrawFilledRect(screen, float32(boxX), float32(boxY), float32(boxWidth), float32(boxHeight), color.RGBA{R: 0, G: 0, B: 0, A: 200}, false)
+	// Draw border
+	vector.StrokeRect(screen, float32(boxX), float32(boxY), float32(boxWidth), float32(boxHeight), 2, color.RGBA{R: 255, G: 255, B: 255, A: 255}, false)
+	
+	// Draw text
+	ebitenutil.DebugPrintAt(screen, text, boxX+10, boxY+8)
 }
 
 // Layout takes the outside size (e.g., the window size) and returns the (logical) screen size.

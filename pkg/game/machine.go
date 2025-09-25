@@ -76,6 +76,7 @@ type MachineInterface interface {
 	GetColor() color.RGBA
 	Process(position int, history [][]*Object, tick int, orientation Orientation) []*Change
 	EmitEffects(game *Game, state *MachineState) []EffectEmission
+	GetDescription() string
 }
 
 // Change represents a change to objects.

@@ -58,3 +58,8 @@ func (s *Start) EmitEffects(game *Game, state *MachineState) []EffectEmission {
 	// For now, no effects
 	return nil
 }
+
+// GetDescription returns the machine description.
+func (s *Start) GetDescription() string {
+	return "Generates red, green, and blue objects at the start of each run."
+}
