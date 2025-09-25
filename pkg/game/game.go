@@ -260,9 +260,6 @@ func (g *Game) Update() error {
 				// Move end to random location up to 2 squares away
 				for pos, ms := range g.state.machines {
 					if ms != nil && ms.Machine.GetType() == MachineEnd {
-						if ms.RoundAdded < g.state.round {
-							continue
-						}
 						currentPos := pos
 						var candidates []int
 						cr := currentPos / gridCols
@@ -510,6 +507,7 @@ func (g *Game) handleDragAndDrop() {
 				}
 			}
 			if gridX != -1 {
+				var placedMS *MachineState
 				if !dragging.IsPlaced {
 					g.state.money -= 1
 					// Create a new instance for placed machine
@@ -522,6 +520,7 @@ func (g *Game) handleDragAndDrop() {
 					}
 					position := (gridY+1)*gridCols + (gridX + 1)
 					g.state.machines[position] = newMS
+					placedMS = newMS
 				} else {
 					// Moving existing placed machine
 					position := (gridY+1)*gridCols + (gridX + 1)
@@ -529,7 +528,22 @@ func (g *Game) handleDragAndDrop() {
 					if position != dragging.OriginalPos {
 						g.state.machines[dragging.OriginalPos] = nil
 					}
+					placedMS = dragging
 				}
+				// Select the newly placed machine
+				// Deselect all
+				for _, m := range g.state.machines {
+					if m != nil {
+						m.Selected = false
+					}
+				}
+				for _, m := range g.state.availableMachines {
+					if m != nil {
+						m.Selected = false
+					}
+				}
+				// Select the placed one
+				placedMS.Selected = true
 			} else {
 				// Check if over sell area
 				sellX := 10
