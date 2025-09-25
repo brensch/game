@@ -158,12 +158,16 @@ func NewGame() *Game {
 	g.calculateLayout()
 
 	// Place random Start and End machines within 4 squares
-	innerStart := 1*gridCols + 1
-	innerSize := displayCols * displayRows
-	startPos := innerStart + rand.Intn(innerSize)
-	endPos := innerStart + rand.Intn(innerSize)
+	startRow := 1 + rand.Intn(displayRows)
+	startCol := 1 + rand.Intn(displayCols)
+	startPos := startRow*gridCols + startCol
+	endRow := 1 + rand.Intn(displayRows)
+	endCol := 1 + rand.Intn(displayCols)
+	endPos := endRow*gridCols + endCol
 	for manhattan(startPos, endPos) > 4 || endPos == startPos {
-		endPos = innerStart + rand.Intn(innerSize)
+		endRow = 1 + rand.Intn(displayRows)
+		endCol = 1 + rand.Intn(displayCols)
+		endPos = endRow*gridCols + endCol
 	}
 
 	state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RoundAdded: 0}
@@ -347,12 +351,16 @@ func (g *Game) Update() error {
 				animationSpeed: 1.0,
 			}
 			// Place random Start and End machines within 4 squares
-			innerStart := 1*gridCols + 1
-			innerSize := displayCols * displayRows
-			startPos := innerStart + rand.Intn(innerSize)
-			endPos := innerStart + rand.Intn(innerSize)
+			startRow := 1 + rand.Intn(displayRows)
+			startCol := 1 + rand.Intn(displayCols)
+			startPos := startRow*gridCols + startCol
+			endRow := 1 + rand.Intn(displayRows)
+			endCol := 1 + rand.Intn(displayCols)
+			endPos := endRow*gridCols + endCol
 			for manhattan(startPos, endPos) > 4 || endPos == startPos {
-				endPos = innerStart + rand.Intn(innerSize)
+				endRow = 1 + rand.Intn(displayRows)
+				endCol = 1 + rand.Intn(displayCols)
+				endPos = endRow*gridCols + endCol
 			}
 			g.state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RoundAdded: 0}
 			g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0}
@@ -454,16 +462,18 @@ func (g *Game) handleDragAndDrop() {
 		if dx*dx+dy*dy > 1000 { // threshold
 			selected := g.getSelectedMachine()
 			if selected != nil {
-				if selected.IsPlaced {
+				if selected.IsPlaced && selected.Machine.GetType() != MachineStart && selected.Machine.GetType() != MachineEnd {
 					g.draggingMachine = selected
 					pos := g.getPos(g.draggingMachine)
 					g.state.machines[pos] = nil
-				} else {
+				} else if !selected.IsPlaced {
 					// from available
 					g.draggingMachine = &MachineState{Machine: selected.Machine, Orientation: selected.Orientation, BeingDragged: true, IsPlaced: false, RoundAdded: g.state.round, Selected: true}
 					selected.Selected = false
 				}
-				g.draggingMachine.BeingDragged = true
+				if g.draggingMachine != nil {
+					g.draggingMachine.BeingDragged = true
+				}
 			}
 		}
 	}
@@ -494,7 +504,7 @@ func (g *Game) handleDragAndDrop() {
 				}
 				g.draggingMachine.IsPlaced = true
 				g.draggingMachine.RoundAdded = g.state.round
-				position := gridY*gridCols + gridX
+				position := (gridY+1)*gridCols + (gridX + 1)
 				g.state.machines[position] = g.draggingMachine
 			}
 			g.draggingMachine.BeingDragged = false
