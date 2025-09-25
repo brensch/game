@@ -26,9 +26,6 @@ func main() {
 			Y:     game.ScreenHeight / 2,
 			Color: color.RGBA{0, 0, 255, 255},
 		}},
-		TouchHoldFrames:        make(map[ebiten.TouchID]int),
-		TouchFrameCounters:     make(map[ebiten.TouchID]int),
-		TouchCurrentThresholds: make(map[ebiten.TouchID]int),
 	}
 
 	if err := ebiten.RunGame(g); err != nil {

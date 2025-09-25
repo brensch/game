@@ -29,8 +29,4 @@ ebitenmobile bind -target android -javapkg com.example.game -o game.aar github/b
 
 echo "AAR built successfully: game.aar"
 
-# Copy to Android app
-echo "Copying AAR to Android app..."
-cp game.aar android_app/app/libs/
-
 echo "Done. You can now build the Android app with ./gradlew assembleDebug"

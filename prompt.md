@@ -1,0 +1,4 @@
+
+
+
+you should be able to drag the objects in the machines this round section onto the grid and they should lock to it. create a game state struct that captures all the information required to render the screen. when the player presses start run it should initiate the run. the start should emit objects of random types and then the machines should either move them around or process them somehow. ultimately getting one base object to the end should give you $1. there is going to be all different types of machines and objects to move through the factory floor. during the run phase (once the player clicks run) the objects should actually flow through the factory floor and should get scored accordingly. i want to have balatro style scoring where there's a base score and a multiplier.

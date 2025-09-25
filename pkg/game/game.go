@@ -30,20 +30,21 @@ type Ball struct {
 }
 
 type Game struct {
-	Balls                  []Ball
-	PrevTouchIDs           []ebiten.TouchID
-	MouseHeld              bool
-	MouseHoldFrames        int
-	MouseFrameCounter      int
-	MouseCurrentThreshold  int
-	TouchHoldFrames        map[ebiten.TouchID]int
-	TouchFrameCounters     map[ebiten.TouchID]int
-	TouchCurrentThresholds map[ebiten.TouchID]int
+	Balls        []Ball
+	PrevTouchIDs []ebiten.TouchID
+	MouseHeld    bool
 }
 
 func (g *Game) Update() error {
 	var currentTouches []ebiten.TouchID
 	currentTouches = ebiten.AppendTouchIDs(currentTouches)
+
+	// Collect all input positions
+	type Input struct {
+		x, y  float64
+		isNew bool
+	}
+	var inputs []Input
 
 	// Handle touch input
 	for _, id := range currentTouches {
@@ -55,50 +56,29 @@ func (g *Game) Update() error {
 				break
 			}
 		}
-		if isNew {
-			// New touch: explode
-			g.explodeAt(float64(x), float64(y))
-			g.TouchFrameCounters[id] = 0
-			g.TouchCurrentThresholds[id] = 30
-		} else {
-			// Continuing touch: add ball
-			g.addBallAt(float64(x), float64(y))
-		}
-	}
-	// Remove old touch frames
-	for id := range g.TouchHoldFrames {
-		found := false
-		for _, currID := range currentTouches {
-			if id == currID {
-				found = true
-				break
-			}
-		}
-		if !found {
-			delete(g.TouchHoldFrames, id)
-			delete(g.TouchFrameCounters, id)
-			delete(g.TouchCurrentThresholds, id)
-		}
+		inputs = append(inputs, Input{x: float64(x), y: float64(y), isNew: isNew})
 	}
 	g.PrevTouchIDs = currentTouches
 
 	// Handle mouse input
 	mousePressed := ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft)
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		// Just pressed: explode
 		mouseX, mouseY := ebiten.CursorPosition()
-		g.explodeAt(float64(mouseX), float64(mouseY))
+		inputs = append(inputs, Input{x: float64(mouseX), y: float64(mouseY), isNew: true})
 		g.MouseHeld = true
-		g.MouseFrameCounter = 0
-		g.MouseCurrentThreshold = 30
 	} else if mousePressed && g.MouseHeld {
-		// Held: add ball
 		mouseX, mouseY := ebiten.CursorPosition()
-		g.addBallAt(float64(mouseX), float64(mouseY))
+		inputs = append(inputs, Input{x: float64(mouseX), y: float64(mouseY), isNew: false})
 	} else if !mousePressed {
 		g.MouseHeld = false
-		g.MouseFrameCounter = 0
-		g.MouseCurrentThreshold = 30
+	}
+
+	// Process inputs
+	for _, input := range inputs {
+		if input.isNew {
+			g.explodeAt(input.x, input.y)
+		}
+		g.addBallAt(input.x, input.y)
 	}
 
 	// Apply physics to all balls
