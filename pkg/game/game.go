@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image/color"
 	"math/rand"
-	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -78,6 +77,21 @@ type Animation struct {
 	Elapsed        float64
 }
 
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func manhattan(p1, p2 int) int {
+	c1 := p1 % gridCols
+	r1 := p1 / gridCols
+	c2 := p2 % gridCols
+	r2 := p2 / gridCols
+	return abs(r1-r2) + abs(c1-c2)
+}
+
 // GameState holds all information about the current state of the game.
 type GameState struct {
 	phase             GamePhase
@@ -124,12 +138,10 @@ func (g *Game) getSelectedMachine() *MachineState {
 
 // NewGame creates a new Game instance.
 func NewGame() *Game {
-	rand.Seed(time.Now().UnixNano())
-
 	state := &GameState{
 		phase:          PhaseBuild,
 		money:          7,
-		run:            3,
+		run:            1,
 		maxRuns:        6,
 		machines:       make([]*MachineState, gridCols*gridRows),
 		round:          1,
@@ -143,9 +155,12 @@ func NewGame() *Game {
 	g.height = 800
 	g.calculateLayout()
 
-	// Place fixed Start and End machines
-	startPos := 0
-	endPos := gridCols*gridRows - 1
+	// Place random Start and End machines within 4 squares
+	startPos := rand.Intn(gridCols * gridRows)
+	endPos := rand.Intn(gridCols * gridRows)
+	for manhattan(startPos, endPos) > 4 || endPos == startPos {
+		endPos = rand.Intn(gridCols * gridRows)
+	}
 
 	state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0}
 	state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0}
@@ -217,6 +232,41 @@ func (g *Game) Update() error {
 				g.state.phase = PhaseBuild
 				g.state.animationTick = 0
 				g.state.animationSpeed = 1.0
+				g.state.run++
+				if g.state.run > g.state.maxRuns {
+					g.state.run = 1
+					g.state.round++
+				}
+				// Move end to random location up to 2 squares away
+				for pos, ms := range g.state.machines {
+					if ms != nil && ms.Machine.GetType() == MachineEnd {
+						currentPos := pos
+						var candidates []int
+						cr := currentPos / gridCols
+						cc := currentPos % gridCols
+						for dr := -2; dr <= 2; dr++ {
+							for dc := -2; dc <= 2; dc++ {
+								if abs(dr)+abs(dc) > 2 || (dr == 0 && dc == 0) {
+									continue
+								}
+								nr := cr + dr
+								nc := cc + dc
+								if nr >= 0 && nr < gridRows && nc >= 0 && nc < gridCols {
+									npos := nr*gridCols + nc
+									if g.state.machines[npos] == nil {
+										candidates = append(candidates, npos)
+									}
+								}
+							}
+						}
+						if len(candidates) > 0 {
+							newPos := candidates[rand.Intn(len(candidates))]
+							g.state.machines[newPos] = ms
+							g.state.machines[currentPos] = nil
+						}
+						break
+					}
+				}
 				break
 			}
 			tickChanges := changes[g.state.animationTick]
@@ -274,6 +324,33 @@ func (g *Game) Update() error {
 				g.state.animations = []*Animation{}
 				g.state.animationTick = 0
 				g.state.animationSpeed = 1.0
+			}
+		}
+		// Check for "Restart" button click
+		if cx >= g.screenWidth-100 && cx <= g.screenWidth-20 && cy >= g.topPanelY+10 && cy <= g.topPanelY+10+g.topPanelHeight-20 {
+			// Reset game state
+			g.state = &GameState{
+				phase:          PhaseBuild,
+				money:          7,
+				run:            1,
+				maxRuns:        6,
+				machines:       make([]*MachineState, gridCols*gridRows),
+				round:          1,
+				animations:     []*Animation{},
+				animationTick:  0,
+				animationSpeed: 1.0,
+			}
+			// Place random Start and End machines within 4 squares
+			startPos := rand.Intn(gridCols * gridRows)
+			endPos := rand.Intn(gridCols * gridRows)
+			for manhattan(startPos, endPos) > 4 || endPos == startPos {
+				endPos = rand.Intn(gridCols * gridRows)
+			}
+			g.state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0}
+			g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0}
+			g.state.availableMachines = []*MachineState{
+				{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RoundAdded: 0},
+				{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RoundAdded: 0},
 			}
 		}
 	}
@@ -359,8 +436,6 @@ func (g *Game) handleDragAndDrop() {
 					}
 				}
 				g.state.running = false
-				g.state.round++
-				g.state.run++
 			}
 		}
 	}
@@ -440,6 +515,10 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 	// Top panel - Total Score
 	vector.DrawFilledRect(screen, 10, float32(g.topPanelY), float32(g.screenWidth-20), float32(g.topPanelHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Total Score: %d x %d = %d", g.state.baseScore, g.state.multiplier, g.state.baseScore*g.state.multiplier), 20, g.topPanelY+20)
+
+	// Restart button
+	vector.DrawFilledRect(screen, float32(g.screenWidth-100), float32(g.topPanelY+10), 80, float32(g.topPanelHeight-20), color.RGBA{R: 200, G: 100, B: 100, A: 255}, false)
+	ebitenutil.DebugPrintAt(screen, "Restart", g.screenWidth-90, g.topPanelY+30)
 
 	// Foreman panel - Money and Run
 	vector.DrawFilledRect(screen, 10, float32(g.foremanY), float32(g.screenWidth-20), float32(g.foremanHeight), color.RGBA{R: 100, G: 100, B: 100, A: 255}, false)
