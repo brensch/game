@@ -189,7 +189,7 @@ func (g *Game) Update() error {
 				g.state.phase = PhaseBuild
 				g.state.objects = nil // Clear objects
 				g.state.baseScore = 0 // Reset score
-				g.state.round++
+				g.state.round = 1
 			}
 		}
 	}
@@ -241,17 +241,25 @@ func (g *Game) handleDragAndDrop() {
 		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 			gridX, gridY := -1, -1
 			// Check if dropped on the grid
-			if cx > g.gridStartX && cx < g.gridStartX+gridCols*(cellSize+gridMargin) &&
-				cy > g.gridStartY && cy < g.gridStartY+gridRows*(cellSize+gridMargin) {
-
-				// Snap to grid
-				col := (cx - g.gridStartX) / (cellSize + gridMargin)
-				row := (cy - g.gridStartY) / (cellSize + gridMargin)
-
-				if g.state.machines[col*gridRows+row] == nil {
-					gridX, gridY = col, row
+			for r := 0; r < gridRows; r++ {
+				for c := 0; c < gridCols; c++ {
+					x := g.gridStartX + c*(cellSize+gridMargin)
+					y := g.gridStartY + r*(cellSize+gridMargin)
+					if cx >= x && cx <= x+cellSize && cy >= y && cy <= y+cellSize {
+						position := r*gridCols + c
+						if g.state.machines[position] == nil {
+							gridX, gridY = c, r
+						} else {
+							fmt.Printf("Position %d occupied\n", position)
+						}
+						break
+					}
+				}
+				if gridX != -1 {
+					break
 				}
 			}
+			fmt.Printf("Release at cx=%d, cy=%d, attempting gridX=%d, gridY=%d\n", cx, cy, gridX, gridY)
 
 			// Check if dropped on sell area
 			sellX, sellY, sellW, sellH := 10, g.bottomY+10, 120, g.bottomHeight-20
