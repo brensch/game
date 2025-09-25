@@ -288,21 +288,21 @@ func (g *Game) handleDragAndDrop() {
 		g.state.pressX, g.state.pressY = cx, cy
 
 		// Check rotation buttons first
-		clockwiseX := g.gridStartX + len(g.state.availableMachines)*(cellSize+gridMargin)
-		clockwiseY := g.availableY
-		if cx >= clockwiseX && cx <= clockwiseX+cellSize && cy >= clockwiseY && cy <= clockwiseY+cellSize {
-			selected := g.getSelectedMachine()
-			if selected != nil {
-				selected.Orientation = (selected.Orientation + 1) % 4
-			}
-			return
-		}
-		counterclockwiseX := g.gridStartX + (len(g.state.availableMachines)+1)*(cellSize+gridMargin)
+		counterclockwiseX := g.screenWidth - 2*cellSize - gridMargin
 		counterclockwiseY := g.availableY
 		if cx >= counterclockwiseX && cx <= counterclockwiseX+cellSize && cy >= counterclockwiseY && cy <= counterclockwiseY+cellSize {
 			selected := g.getSelectedMachine()
 			if selected != nil {
 				selected.Orientation = (selected.Orientation + 3) % 4
+			}
+			return
+		}
+		clockwiseX := g.screenWidth - cellSize
+		clockwiseY := g.availableY
+		if cx >= clockwiseX && cx <= clockwiseX+cellSize && cy >= clockwiseY && cy <= clockwiseY+cellSize {
+			selected := g.getSelectedMachine()
+			if selected != nil {
+				selected.Orientation = (selected.Orientation + 1) % 4
 			}
 			return
 		}
@@ -533,15 +533,15 @@ func (g *Game) drawMachines(screen *ebiten.Image) {
 	}
 
 	// Rotation buttons
-	clockwiseX := g.gridStartX + len(g.state.availableMachines)*(cellSize+gridMargin)
-	clockwiseY := g.availableY
-	vector.DrawFilledRect(screen, float32(clockwiseX), float32(clockwiseY), cellSize, cellSize, color.RGBA{R: 100, G: 100, B: 200, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, "CW", clockwiseX+10, clockwiseY+20)
-
-	counterclockwiseX := g.gridStartX + (len(g.state.availableMachines)+1)*(cellSize+gridMargin)
+	counterclockwiseX := g.screenWidth - 2*cellSize - gridMargin
 	counterclockwiseY := g.availableY
-	vector.DrawFilledRect(screen, float32(counterclockwiseX), float32(counterclockwiseY), cellSize, cellSize, color.RGBA{R: 200, G: 100, B: 100, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, "CCW", counterclockwiseX+5, counterclockwiseY+20)
+	vector.DrawFilledCircle(screen, float32(counterclockwiseX+cellSize/2), float32(counterclockwiseY+cellSize/2), cellSize/2, color.RGBA{R: 200, G: 100, B: 100, A: 255}, false)
+	ebitenutil.DebugPrintAt(screen, "<-", counterclockwiseX+22, counterclockwiseY+26)
+
+	clockwiseX := g.screenWidth - cellSize
+	clockwiseY := g.availableY
+	vector.DrawFilledCircle(screen, float32(clockwiseX+cellSize/2), float32(clockwiseY+cellSize/2), cellSize/2, color.RGBA{R: 100, G: 100, B: 200, A: 255}, false)
+	ebitenutil.DebugPrintAt(screen, "->", clockwiseX+22, clockwiseY+26)
 }
 
 func (g *Game) drawObjects(screen *ebiten.Image) {
