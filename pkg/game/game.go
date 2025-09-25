@@ -224,7 +224,7 @@ func (g *Game) Update() error {
 		// Simple button detection for "Start Run"
 		if cx > 250 && cx < g.screenWidth-30 && cy > g.bottomY+10 && cy < g.bottomY+10+g.bottomHeight-20 {
 			if g.state.phase == PhaseBuild {
-				changes, _ := SimulateRun(g.state.machines, g.state.objects, g.state.round)
+				changes, _ := SimulateRun(g.state.machines, g.state.round)
 				for i, tickChanges := range changes {
 					fmt.Printf("Tick %d: %d changes\n", i, len(tickChanges))
 					for _, ch := range tickChanges {

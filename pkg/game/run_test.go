@@ -11,9 +11,7 @@ func TestSimulateRun(t *testing.T) {
 	machines[1] = &MachineState{Machine: &Conveyor{}, Orientation: OrientationEast, IsPlaced: true, RoundAdded: 0}
 	machines[2] = &MachineState{Machine: &End{}, Orientation: OrientationEast, IsPlaced: true, RoundAdded: 0}
 
-	initialObjects := []*Object{}
-
-	changes, err := SimulateRun(machines, initialObjects, 1)
+	changes, err := SimulateRun(machines, 1)
 	if err != nil {
 		t.Fatalf("SimulateRun failed: %v", err)
 	}
@@ -28,9 +26,8 @@ func TestSimulateRun(t *testing.T) {
 
 func TestSimulateRunNoMachines(t *testing.T) {
 	machines := make([]*MachineState, 49)
-	initialObjects := []*Object{}
 
-	changes, err := SimulateRun(machines, initialObjects, 1)
+	changes, err := SimulateRun(machines, 1)
 	if err != nil {
 		t.Fatalf("SimulateRun failed: %v", err)
 	}

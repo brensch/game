@@ -1,8 +1,8 @@
 package game
 
 // SimulateRun simulates the entire run sequence.
-func SimulateRun(machines []*MachineState, initialObjects []*Object, round int) ([][]*Change, error) {
-	history := [][]*Object{initialObjects}
+func SimulateRun(machines []*MachineState, round int) ([][]*Change, error) {
+	history := [][]*Object{{}} // start with empty objects for tick 0
 	allChanges := [][]*Change{}
 
 	for tick := 0; tick < 1000; tick++ {

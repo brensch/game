@@ -18,15 +18,19 @@ func (s *Start) GetColor() color.RGBA {
 }
 
 // Process handles object interaction for start.
-func (s *Start) Process(position int, objects [][]*Object, round int, orientation Orientation) []*Change {
-	current := objects[len(objects)-1]
-	if len(objects) == 1 { // first tick
-		// Check if object already at position
-		for _, obj := range current {
-			if obj.GridPosition == position {
-				return nil
-			}
+func (s *Start) Process(position int, history [][]*Object, round int, orientation Orientation) []*Change {
+	if len(history) <= 3 {
+		// Emit one object per tick for first 3 ticks
+		var objType ObjectType
+		switch len(history) {
+		case 1:
+			objType = ObjectRed
+		case 2:
+			objType = ObjectGreen
+		case 3:
+			objType = ObjectBlue
 		}
+
 		// Emit to next position based on orientation
 		nextPos := position + 1 // default east
 		switch orientation {
@@ -40,8 +44,8 @@ func (s *Start) Process(position int, objects [][]*Object, round int, orientatio
 			nextPos = position - 1
 		}
 		return []*Change{{
-			StartObject: nil,
-			EndObject:   &Object{GridPosition: nextPos, Type: ObjectRed},
+			StartObject: &Object{GridPosition: position, Type: objType},
+			EndObject:   &Object{GridPosition: nextPos, Type: objType},
 		}}
 	}
 	return nil

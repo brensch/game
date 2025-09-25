@@ -18,8 +18,8 @@ func (e *End) GetColor() color.RGBA {
 }
 
 // Process handles object interaction for end.
-func (e *End) Process(position int, objects [][]*Object, round int, orientation Orientation) []*Change {
-	current := objects[len(objects)-1]
+func (e *End) Process(position int, history [][]*Object, round int, orientation Orientation) []*Change {
+	current := history[len(history)-1]
 	for _, obj := range current {
 		if obj.GridPosition == position {
 			return []*Change{{

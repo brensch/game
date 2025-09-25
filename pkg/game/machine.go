@@ -74,7 +74,7 @@ type EffectEmission struct {
 type MachineInterface interface {
 	GetType() MachineType
 	GetColor() color.RGBA
-	Process(position int, objects [][]*Object, round int, orientation Orientation) []*Change
+	Process(position int, history [][]*Object, round int, orientation Orientation) []*Change
 	EmitEffects(game *Game, state *MachineState) []EffectEmission
 }
 
