@@ -18,10 +18,12 @@ const (
 	bottomHeight    = 60
 	minGap          = 10
 
-	gridCols   = 7
-	gridRows   = 7
-	cellSize   = 60
-	gridMargin = 10
+	gridCols    = 9
+	gridRows    = 9
+	displayCols = 7
+	displayRows = 7
+	cellSize    = 60
+	gridMargin  = 10
 )
 
 // ObjectType represents the different kinds of items that can move through the factory.
@@ -156,13 +158,15 @@ func NewGame() *Game {
 	g.calculateLayout()
 
 	// Place random Start and End machines within 4 squares
-	startPos := rand.Intn(gridCols * gridRows)
-	endPos := rand.Intn(gridCols * gridRows)
+	innerStart := 1*gridCols + 1
+	innerSize := displayCols * displayRows
+	startPos := innerStart + rand.Intn(innerSize)
+	endPos := innerStart + rand.Intn(innerSize)
 	for manhattan(startPos, endPos) > 4 || endPos == startPos {
-		endPos = rand.Intn(gridCols * gridRows)
+		endPos = innerStart + rand.Intn(innerSize)
 	}
 
-	state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0}
+	state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RoundAdded: 0}
 	state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0}
 
 	state.availableMachines = []*MachineState{
@@ -179,7 +183,7 @@ func (g *Game) calculateLayout() {
 	g.availableHeight = availableHeight
 	g.bottomHeight = bottomHeight
 
-	gridHeight := gridRows*cellSize + (gridRows-1)*gridMargin
+	gridHeight := displayRows*cellSize + (displayRows-1)*gridMargin
 	gap := (g.height - 760) / 5
 	if gap < 0 {
 		gap = 0
@@ -190,21 +194,20 @@ func (g *Game) calculateLayout() {
 	g.availableY = g.gridStartY + gridHeight + gap
 	g.bottomY = g.availableY + g.availableHeight + gap
 	g.screenWidth = g.width
-	g.gridStartX = (g.screenWidth - (gridCols*cellSize + (gridCols-1)*gridMargin)) / 2
+	g.gridStartX = (g.screenWidth - (displayCols*cellSize + (displayCols-1)*gridMargin)) / 2
 }
 
 func (g *Game) getMachineAt(cx, cy int) *MachineState {
-	for pos, ms := range g.state.machines {
-		if ms == nil {
-			continue
-		}
-		col := pos % gridCols
-		row := pos / gridCols
-		x := g.gridStartX + col*(cellSize+gridMargin)
-		y := g.gridStartY + row*(cellSize+gridMargin)
-		if cx >= x && cx <= x+cellSize && cy >= y && cy <= y+cellSize {
-			return ms
-		}
+	col := (cx - g.gridStartX) / (cellSize + gridMargin)
+	row := (cy - g.gridStartY) / (cellSize + gridMargin)
+	if col < 0 || col >= displayCols || row < 0 || row >= displayRows {
+		return nil
+	}
+	internalCol := col + 1
+	internalRow := row + 1
+	pos := internalRow*gridCols + internalCol
+	if pos < len(g.state.machines) && g.state.machines[pos] != nil {
+		return g.state.machines[pos]
 	}
 	return nil
 }
@@ -240,6 +243,9 @@ func (g *Game) Update() error {
 				// Move end to random location up to 2 squares away
 				for pos, ms := range g.state.machines {
 					if ms != nil && ms.Machine.GetType() == MachineEnd {
+						if ms.RoundAdded < g.state.round {
+							continue
+						}
 						currentPos := pos
 						var candidates []int
 						cr := currentPos / gridCols
@@ -279,10 +285,10 @@ func (g *Game) Update() error {
 				startGridY := ch.StartObject.GridPosition / gridCols
 				endGridX := ch.EndObject.GridPosition % gridCols
 				endGridY := ch.EndObject.GridPosition / gridCols
-				startX := float64(g.gridStartX + startGridX*(cellSize+gridMargin) + cellSize/2)
-				startY := float64(g.gridStartY + startGridY*(cellSize+gridMargin) + cellSize/2)
-				endX := float64(g.gridStartX + endGridX*(cellSize+gridMargin) + cellSize/2)
-				endY := float64(g.gridStartY + endGridY*(cellSize+gridMargin) + cellSize/2)
+				startX := float64(g.gridStartX + (startGridX-1)*(cellSize+gridMargin) + cellSize/2)
+				startY := float64(g.gridStartY + (startGridY-1)*(cellSize+gridMargin) + cellSize/2)
+				endX := float64(g.gridStartX + (endGridX-1)*(cellSize+gridMargin) + cellSize/2)
+				endY := float64(g.gridStartY + (endGridY-1)*(cellSize+gridMargin) + cellSize/2)
 				objColor := color.RGBA{R: 255, A: 255}
 				switch ch.StartObject.Type {
 				case ObjectGreen:
@@ -341,12 +347,14 @@ func (g *Game) Update() error {
 				animationSpeed: 1.0,
 			}
 			// Place random Start and End machines within 4 squares
-			startPos := rand.Intn(gridCols * gridRows)
-			endPos := rand.Intn(gridCols * gridRows)
+			innerStart := 1*gridCols + 1
+			innerSize := displayCols * displayRows
+			startPos := innerStart + rand.Intn(innerSize)
+			endPos := innerStart + rand.Intn(innerSize)
 			for manhattan(startPos, endPos) > 4 || endPos == startPos {
-				endPos = rand.Intn(gridCols * gridRows)
+				endPos = innerStart + rand.Intn(innerSize)
 			}
-			g.state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0}
+			g.state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RoundAdded: 0}
 			g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0}
 			g.state.availableMachines = []*MachineState{
 				{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RoundAdded: 0},
@@ -464,12 +472,12 @@ func (g *Game) handleDragAndDrop() {
 		if g.draggingMachine != nil {
 			// Place at cursor position
 			gridX, gridY := -1, -1
-			for r := 0; r < gridRows; r++ {
-				for c := 0; c < gridCols; c++ {
+			for r := 0; r < displayRows; r++ {
+				for c := 0; c < displayCols; c++ {
 					x := g.gridStartX + c*(cellSize+gridMargin)
 					y := g.gridStartY + r*(cellSize+gridMargin)
 					if cx >= x && cx <= x+cellSize && cy >= y && cy <= y+cellSize {
-						position := r*gridCols + c
+						position := (r+1)*gridCols + (c + 1)
 						if g.state.machines[position] == nil {
 							gridX, gridY = c, r
 						}
@@ -549,8 +557,8 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 }
 
 func (g *Game) drawFactoryFloor(screen *ebiten.Image) {
-	for r := 0; r < gridRows; r++ {
-		for c := 0; c < gridCols; c++ {
+	for r := 0; r < displayRows; r++ {
+		for c := 0; c < displayCols; c++ {
 			x := g.gridStartX + c*(cellSize+gridMargin)
 			y := g.gridStartY + r*(cellSize+gridMargin)
 			vector.DrawFilledRect(screen, float32(x), float32(y), cellSize, cellSize, color.RGBA{R: 60, G: 60, B: 60, A: 255}, false)
@@ -588,8 +596,11 @@ func (g *Game) drawMachines(screen *ebiten.Image) {
 		}
 		col := pos % gridCols
 		row := pos / gridCols
-		x := g.gridStartX + col*(cellSize+gridMargin)
-		y := g.gridStartY + row*(cellSize+gridMargin)
+		if row < 1 || row > displayRows || col < 1 || col > displayCols {
+			continue
+		}
+		x := g.gridStartX + (col-1)*(cellSize+gridMargin)
+		y := g.gridStartY + (row-1)*(cellSize+gridMargin)
 		vector.DrawFilledRect(screen, float32(x), float32(y), cellSize, cellSize, ms.Machine.GetColor(), false)
 		if ms.Machine.GetType() == MachineStart {
 			ebitenutil.DebugPrintAt(screen, "Start", int(x)+10, int(y)+20)
@@ -635,8 +646,11 @@ func (g *Game) drawObjects(screen *ebiten.Image) {
 		}
 		gridX := obj.GridPosition % gridCols
 		gridY := obj.GridPosition / gridCols
-		x := g.gridStartX + gridX*(cellSize+gridMargin) + cellSize/2
-		y := g.gridStartY + gridY*(cellSize+gridMargin) + cellSize/2
+		if gridY < 1 || gridY > displayRows || gridX < 1 || gridX > displayCols {
+			continue
+		}
+		x := g.gridStartX + (gridX-1)*(cellSize+gridMargin) + cellSize/2
+		y := g.gridStartY + (gridY-1)*(cellSize+gridMargin) + cellSize/2
 		vector.DrawFilledCircle(screen, float32(x), float32(y), 10, objColor, false)
 	}
 
@@ -663,10 +677,12 @@ func (g *Game) drawTooltips(screen *ebiten.Image) {
 			if ms == selected {
 				col := pos % gridCols
 				row := pos / gridCols
-				x := g.gridStartX + col*(cellSize+gridMargin) + cellSize/2
-				y := g.gridStartY + row*(cellSize+gridMargin)
-				g.drawTooltip(screen, selected.Machine.GetDescription(), x, y-10)
-				return
+				if row >= 1 && row <= displayRows && col >= 1 && col <= displayCols {
+					x := g.gridStartX + (col-1)*(cellSize+gridMargin) + cellSize/2
+					y := g.gridStartY + (row-1)*(cellSize+gridMargin)
+					g.drawTooltip(screen, selected.Machine.GetDescription(), x, y-10)
+					return
+				}
 			}
 		}
 		// Check available machines
