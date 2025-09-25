@@ -1,7 +1,6 @@
 package main
 
 import (
-	"image/color"
 	"log"
 
 	"github/brensch/game/pkg/game"
@@ -10,8 +9,8 @@ import (
 )
 
 func main() {
-	ebiten.SetWindowSize(game.ScreenWidth, game.ScreenHeight)
-	ebiten.SetWindowTitle("Bouncing Ball Physics Game")
+	ebiten.SetWindowSize(480, 800)
+	ebiten.SetWindowTitle("Factory game")
 
 	// Target the second monitor
 	var monitors []*ebiten.MonitorType
@@ -20,13 +19,7 @@ func main() {
 		ebiten.SetMonitor(monitors[1])
 	}
 
-	g := &game.Game{
-		Balls: []game.Ball{{
-			X:     game.ScreenWidth / 2,
-			Y:     game.ScreenHeight / 2,
-			Color: color.RGBA{0, 0, 255, 255},
-		}},
-	}
+	g := game.NewGame()
 
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)

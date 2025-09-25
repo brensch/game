@@ -1,21 +1,13 @@
 package mobile
 
 import (
-	"image/color"
-
 	"github/brensch/game/pkg/game"
 
 	"github.com/hajimehoshi/ebiten/v2/mobile"
 )
 
 func init() {
-	mobile.SetGame(&game.Game{
-		Balls: []game.Ball{{
-			X:     game.ScreenWidth / 2,
-			Y:     game.ScreenHeight / 2,
-			Color: color.RGBA{0, 0, 255, 255},
-		}},
-	})
+	mobile.SetGame(&game.Game{})
 }
 
 // Dummy is a dummy exported function.
