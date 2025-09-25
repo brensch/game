@@ -71,18 +71,20 @@ const (
 
 // GameState holds all information about the current state of the game.
 type GameState struct {
-	phase                    GamePhase
-	money                    int
-	run                      int
-	maxRuns                  int
-	baseScore                int
-	multiplier               int
-	machines                 []*MachineState
-	availableMachines        []*MachineState
-	objects                  []*Object
-	draggingMachine          *MachineState
-	dragOffsetX, dragOffsetY int
-	round                    int
+	phase             GamePhase
+	money             int
+	run               int
+	maxRuns           int
+	baseScore         int
+	multiplier        int
+	machines          []*MachineState
+	availableMachines []*MachineState
+	objects           []*Object
+	selectedMachine   *MachineState
+	round             int
+	mousePressed      bool
+	pressX, pressY    int
+	wasPressed        bool
 }
 
 // Game implements ebiten.Game.
@@ -169,6 +171,31 @@ func (g *Game) calculateLayout() {
 	g.gridStartX = (g.screenWidth - (gridCols*cellSize + (gridCols-1)*gridMargin)) / 2
 }
 
+func (g *Game) getMachineAt(cx, cy int) *MachineState {
+	for pos, ms := range g.state.machines {
+		if ms == nil {
+			continue
+		}
+		col := pos % gridCols
+		row := pos / gridCols
+		x := g.gridStartX + col*(cellSize+gridMargin)
+		y := g.gridStartY + row*(cellSize+gridMargin)
+		if cx >= x && cx <= x+cellSize && cy >= y && cy <= y+cellSize {
+			return ms
+		}
+	}
+	return nil
+}
+
+func (g *Game) getPos(ms *MachineState) int {
+	for pos, m := range g.state.machines {
+		if m == ms {
+			return pos
+		}
+	}
+	return -1
+}
+
 // Update proceeds the game state.
 func (g *Game) Update() error {
 	switch g.state.phase {
@@ -200,47 +227,58 @@ func (g *Game) handleDragAndDrop() {
 	cx, cy := ebiten.CursorPosition()
 
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		// Check if picking up from available
+		g.state.mousePressed = true
+		g.state.pressX, g.state.pressY = cx, cy
+		// Check if picking from available
+		selected := false
 		for i, ms := range g.state.availableMachines {
-			if !ms.BeingDragged {
-				x := g.gridStartX + i*(cellSize+gridMargin)
-				y := g.availableY
-				if cx >= x && cx <= x+cellSize && cy >= y && cy <= y+cellSize {
-					g.state.draggingMachine = ms
-					ms.BeingDragged = true
-					g.state.dragOffsetX = cx - int(x)
-					g.state.dragOffsetY = cy - int(y)
-					break
+			x := g.gridStartX + i*(cellSize+gridMargin)
+			y := g.availableY
+			if cx >= x && cx <= x+cellSize && cy >= y && cy <= y+cellSize {
+				var newMachine MachineInterface
+				switch ms.Machine.GetType() {
+				case MachineConveyor:
+					newMachine = &Conveyor{}
+				case MachineProcessor:
+					newMachine = &Processor{}
 				}
+				g.state.selectedMachine = &MachineState{Machine: newMachine, Orientation: ms.Orientation, BeingDragged: false, IsPlaced: false, RoundAdded: 0, Selected: true}
+				selected = true
+				break
 			}
 		}
+		if !selected {
+			g.state.selectedMachine = g.getMachineAt(cx, cy)
+			if g.state.selectedMachine != nil {
+				g.state.selectedMachine.Selected = true
+			}
+		}
+		// Deselect others
+		for _, ms := range g.state.machines {
+			if ms != nil && ms != g.state.selectedMachine {
+				ms.Selected = false
+			}
+		}
+	}
 
-		// Check if picking up from grid (only current round machines)
-		if g.state.draggingMachine == nil {
-			for i, ms := range g.state.machines {
-				if ms != nil && !ms.BeingDragged && ms.RoundAdded == g.state.round {
-					col := i % gridCols
-					row := i / gridCols
-					x := g.gridStartX + col*(cellSize+gridMargin)
-					y := g.gridStartY + row*(cellSize+gridMargin)
-					if cx >= x && cx <= x+cellSize && cy >= y && cy <= y+cellSize {
-						g.state.draggingMachine = ms
-						ms.BeingDragged = true
-						g.state.dragOffsetX = cx - int(x)
-						g.state.dragOffsetY = cy - int(y)
-						g.state.machines[i] = nil // remove from grid
-						break
-					}
+	if g.state.mousePressed {
+		dx := cx - g.state.pressX
+		dy := cy - g.state.pressY
+		if dx*dx+dy*dy > 1000 { // threshold
+			if g.state.selectedMachine != nil {
+				g.state.selectedMachine.BeingDragged = true
+				if g.state.selectedMachine.IsPlaced {
+					pos := g.getPos(g.state.selectedMachine)
+					g.state.machines[pos] = nil
 				}
 			}
 		}
 	}
 
-	if g.state.draggingMachine != nil {
-		// Update dragging position is handled in Draw
-		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+		if g.state.selectedMachine != nil && g.state.selectedMachine.BeingDragged {
+			// Place at cursor position
 			gridX, gridY := -1, -1
-			// Check if dropped on the grid
 			for r := 0; r < gridRows; r++ {
 				for c := 0; c < gridCols; c++ {
 					x := g.gridStartX + c*(cellSize+gridMargin)
@@ -249,8 +287,6 @@ func (g *Game) handleDragAndDrop() {
 						position := r*gridCols + c
 						if g.state.machines[position] == nil {
 							gridX, gridY = c, r
-						} else {
-							fmt.Printf("Position %d occupied\n", position)
 						}
 						break
 					}
@@ -259,32 +295,18 @@ func (g *Game) handleDragAndDrop() {
 					break
 				}
 			}
-			fmt.Printf("Release at cx=%d, cy=%d, attempting gridX=%d, gridY=%d\n", cx, cy, gridX, gridY)
-
-			// Check if dropped on sell area
-			sellX, sellY, sellW, sellH := 10, g.bottomY+10, 120, g.bottomHeight-20
-			if cx >= sellX && cx <= sellX+sellW && cy >= sellY && cy <= sellY+sellH {
-				// Sell the machine, refund money
-				g.state.money += 1
-				g.state.draggingMachine.BeingDragged = false
-				g.state.draggingMachine = nil
-			} else if gridX != -1 {
-				// Place on grid
-				if !g.state.draggingMachine.IsPlaced {
-					g.state.money -= 1 // Deduct for buying
+			if gridX != -1 {
+				if !g.state.selectedMachine.IsPlaced {
+					g.state.money -= 1
 				}
-				g.state.draggingMachine.IsPlaced = true
-				g.state.draggingMachine.RoundAdded = g.state.round
+				g.state.selectedMachine.IsPlaced = true
+				g.state.selectedMachine.RoundAdded = g.state.round
 				position := gridY*gridCols + gridX
-				g.state.machines[position] = g.state.draggingMachine
-				g.state.draggingMachine.BeingDragged = false
-				g.state.draggingMachine = nil
-			} else {
-				// Dropped elsewhere, discard
-				g.state.draggingMachine.BeingDragged = false
-				g.state.draggingMachine = nil
+				g.state.machines[position] = g.state.selectedMachine
 			}
+			g.state.selectedMachine.BeingDragged = false
 		}
+		g.state.mousePressed = false
 	}
 }
 
@@ -318,11 +340,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawObjects(screen)
 
 	// Draw the dragging machine on top
-	if g.state.draggingMachine != nil && g.state.draggingMachine.Machine != nil {
+	if g.state.selectedMachine != nil && g.state.selectedMachine.BeingDragged {
 		cx, cy := ebiten.CursorPosition()
-		x := cx - g.state.dragOffsetX
-		y := cy - g.state.dragOffsetY
-		vector.DrawFilledRect(screen, float32(x), float32(y), cellSize, cellSize, g.state.draggingMachine.Machine.GetColor(), false)
+		vector.DrawFilledRect(screen, float32(cx-cellSize/2), float32(cy-cellSize/2), cellSize, cellSize, g.state.selectedMachine.Machine.GetColor(), false)
 	}
 }
 
@@ -368,6 +388,28 @@ func (g *Game) drawFactoryFloor(screen *ebiten.Image) {
 	}
 }
 
+func (g *Game) drawArrow(screen *ebiten.Image, x, y float32, orientation Orientation) {
+	arrowColor := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	switch orientation {
+	case OrientationNorth:
+		vector.StrokeLine(screen, x+30, y+50, x+30, y+10, 1, arrowColor, false)
+		vector.StrokeLine(screen, x+20, y+20, x+30, y+10, 1, arrowColor, false)
+		vector.StrokeLine(screen, x+40, y+20, x+30, y+10, 1, arrowColor, false)
+	case OrientationEast:
+		vector.StrokeLine(screen, x+10, y+30, x+50, y+30, 1, arrowColor, false)
+		vector.StrokeLine(screen, x+40, y+20, x+50, y+30, 1, arrowColor, false)
+		vector.StrokeLine(screen, x+40, y+40, x+50, y+30, 1, arrowColor, false)
+	case OrientationSouth:
+		vector.StrokeLine(screen, x+30, y+10, x+30, y+50, 1, arrowColor, false)
+		vector.StrokeLine(screen, x+20, y+40, x+30, y+50, 1, arrowColor, false)
+		vector.StrokeLine(screen, x+40, y+40, x+30, y+50, 1, arrowColor, false)
+	case OrientationWest:
+		vector.StrokeLine(screen, x+50, y+30, x+10, y+30, 1, arrowColor, false)
+		vector.StrokeLine(screen, x+20, y+20, x+10, y+30, 1, arrowColor, false)
+		vector.StrokeLine(screen, x+20, y+40, x+10, y+30, 1, arrowColor, false)
+	}
+}
+
 func (g *Game) drawMachines(screen *ebiten.Image) {
 	// Machines on the grid
 	for pos, ms := range g.state.machines {
@@ -384,6 +426,10 @@ func (g *Game) drawMachines(screen *ebiten.Image) {
 		}
 		if ms.Machine.GetType() == MachineEnd {
 			ebitenutil.DebugPrintAt(screen, "End", int(x)+15, int(y)+20)
+		}
+		g.drawArrow(screen, float32(x), float32(y), ms.Orientation)
+		if ms.Selected {
+			vector.StrokeRect(screen, float32(x), float32(y), cellSize, cellSize, 3, color.RGBA{R: 255, G: 255, B: 0, A: 255}, false)
 		}
 	}
 
