@@ -2,7 +2,7 @@ package game
 
 // SimulateRun simulates the entire run sequence.
 func SimulateRun(machines []*MachineState) ([][]*Change, error) {
-	history := [][]*Object{{}} // start with empty objects for tick 0
+	var history [][]*Object
 	allChanges := [][]*Change{}
 
 	for tick := 0; tick < 1000; tick++ {
