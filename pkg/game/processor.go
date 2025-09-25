@@ -18,8 +18,9 @@ func (p *Processor) GetColor() color.RGBA {
 }
 
 // Process handles object interaction for processor.
-func (p *Processor) Process(position int, objects []*Object, round int, orientation Orientation) []*Change {
-	for _, obj := range objects {
+func (p *Processor) Process(position int, objects [][]*Object, round int, orientation Orientation) []*Change {
+	current := objects[len(objects)-1]
+	for _, obj := range current {
 		if obj.GridPosition == position {
 			nextPos := position + 1 // default east
 			switch orientation {

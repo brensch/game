@@ -18,10 +18,11 @@ func (s *Start) GetColor() color.RGBA {
 }
 
 // Process handles object interaction for start.
-func (s *Start) Process(position int, objects []*Object, round int, orientation Orientation) []*Change {
-	if round%60 == 0 {
+func (s *Start) Process(position int, objects [][]*Object, round int, orientation Orientation) []*Change {
+	current := objects[len(objects)-1]
+	if len(objects) == 1 { // first tick
 		// Check if object already at position
-		for _, obj := range objects {
+		for _, obj := range current {
 			if obj.GridPosition == position {
 				return nil
 			}
