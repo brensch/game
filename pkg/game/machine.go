@@ -13,6 +13,7 @@ type MachineState struct {
 	IsPlaced     bool
 	RoundAdded   int
 	Selected     bool
+	OriginalPos  int
 }
 
 // EffectType represents different effects machines can have.

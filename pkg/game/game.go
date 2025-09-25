@@ -117,7 +117,6 @@ type GameState struct {
 // Game implements ebiten.Game.
 type Game struct {
 	state                                                        *GameState
-	draggingMachine                                              *MachineState
 	width, height                                                int
 	topPanelHeight, foremanHeight, availableHeight, bottomHeight int
 	topPanelY, foremanY, gridStartY, availableY, bottomY         int
@@ -132,6 +131,20 @@ func (g *Game) getSelectedMachine() *MachineState {
 	}
 	for _, ms := range g.state.availableMachines {
 		if ms != nil && ms.Selected {
+			return ms
+		}
+	}
+	return nil
+}
+
+func (g *Game) getDraggingMachine() *MachineState {
+	for _, ms := range g.state.machines {
+		if ms != nil && ms.BeingDragged {
+			return ms
+		}
+	}
+	for _, ms := range g.state.availableMachines {
+		if ms != nil && ms.BeingDragged {
 			return ms
 		}
 	}
@@ -170,8 +183,8 @@ func NewGame() *Game {
 		endPos = endRow*gridCols + endCol
 	}
 
-	state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RoundAdded: 0}
-	state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0}
+	state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RoundAdded: 0, OriginalPos: startPos}
+	state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0, OriginalPos: endPos}
 
 	state.availableMachines = []*MachineState{
 		{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RoundAdded: 0},
@@ -362,8 +375,8 @@ func (g *Game) Update() error {
 				endCol = 1 + rand.Intn(displayCols)
 				endPos = endRow*gridCols + endCol
 			}
-			g.state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RoundAdded: 0}
-			g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0}
+			g.state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RoundAdded: 0, OriginalPos: startPos}
+			g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0, OriginalPos: endPos}
 			g.state.availableMachines = []*MachineState{
 				{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RoundAdded: 0},
 				{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RoundAdded: 0},
@@ -463,23 +476,21 @@ func (g *Game) handleDragAndDrop() {
 			selected := g.getSelectedMachine()
 			if selected != nil {
 				if selected.IsPlaced && selected.Machine.GetType() != MachineStart && selected.Machine.GetType() != MachineEnd {
-					g.draggingMachine = selected
-					pos := g.getPos(g.draggingMachine)
-					g.state.machines[pos] = nil
+					selected.BeingDragged = true
+					pos := g.getPos(selected)
+					selected.OriginalPos = pos
 				} else if !selected.IsPlaced {
 					// from available
-					g.draggingMachine = &MachineState{Machine: selected.Machine, Orientation: selected.Orientation, BeingDragged: true, IsPlaced: false, RoundAdded: g.state.round, Selected: true}
-					selected.Selected = false
-				}
-				if g.draggingMachine != nil {
-					g.draggingMachine.BeingDragged = true
+					selected.BeingDragged = true
+					selected.RoundAdded = g.state.round
 				}
 			}
 		}
 	}
 
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
-		if g.draggingMachine != nil {
+		dragging := g.getDraggingMachine()
+		if dragging != nil {
 			// Place at cursor position
 			gridX, gridY := -1, -1
 			for r := 0; r < displayRows; r++ {
@@ -499,16 +510,47 @@ func (g *Game) handleDragAndDrop() {
 				}
 			}
 			if gridX != -1 {
-				if !g.draggingMachine.IsPlaced {
+				if !dragging.IsPlaced {
 					g.state.money -= 1
+					// Create a new instance for placed machine
+					newMS := &MachineState{
+						Machine:      dragging.Machine,
+						Orientation:  dragging.Orientation,
+						BeingDragged: false,
+						IsPlaced:     true,
+						RoundAdded:   g.state.round,
+					}
+					position := (gridY+1)*gridCols + (gridX + 1)
+					g.state.machines[position] = newMS
+				} else {
+					// Moving existing placed machine
+					position := (gridY+1)*gridCols + (gridX + 1)
+					g.state.machines[position] = dragging
+					if position != dragging.OriginalPos {
+						g.state.machines[dragging.OriginalPos] = nil
+					}
 				}
-				g.draggingMachine.IsPlaced = true
-				g.draggingMachine.RoundAdded = g.state.round
-				position := (gridY+1)*gridCols + (gridX + 1)
-				g.state.machines[position] = g.draggingMachine
+			} else {
+				// Check if over sell area
+				sellX := 10
+				sellY := g.bottomY + 10
+				sellWidth := 120
+				sellHeight := g.bottomHeight - 20
+				if cx >= sellX && cx <= sellX+sellWidth && cy >= sellY && cy <= sellY+sellHeight {
+					if dragging.IsPlaced && dragging.Machine.GetType() != MachineStart && dragging.Machine.GetType() != MachineEnd {
+						// Sell the machine
+						g.state.money += 1
+						// Remove from grid
+						for pos, ms := range g.state.machines {
+							if ms == dragging {
+								g.state.machines[pos] = nil
+								break
+							}
+						}
+					}
+				}
 			}
-			g.draggingMachine.BeingDragged = false
-			g.draggingMachine = nil
+			dragging.BeingDragged = false
 		}
 		g.state.mousePressed = false
 	}
@@ -524,9 +566,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawTooltips(screen)
 
 	// Draw the dragging machine on top
-	if g.draggingMachine != nil {
+	dragging := g.getDraggingMachine()
+	if dragging != nil {
 		cx, cy := ebiten.CursorPosition()
-		vector.DrawFilledRect(screen, float32(cx-cellSize/2), float32(cy-cellSize/2), cellSize, cellSize, g.draggingMachine.Machine.GetColor(), false)
+		vector.DrawFilledRect(screen, float32(cx-cellSize/2), float32(cy-cellSize/2), cellSize, cellSize, dragging.Machine.GetColor(), false)
 	}
 }
 
@@ -601,7 +644,7 @@ func (g *Game) drawArrow(screen *ebiten.Image, x, y float32, orientation Orienta
 func (g *Game) drawMachines(screen *ebiten.Image) {
 	// Machines on the grid
 	for pos, ms := range g.state.machines {
-		if ms == nil || ms.Machine == nil {
+		if ms == nil || ms.Machine == nil || ms.BeingDragged {
 			continue
 		}
 		col := pos % gridCols
