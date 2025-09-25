@@ -20,7 +20,7 @@ func main() {
 		ebiten.SetMonitor(monitors[1])
 	}
 
-	g := game.NewGame()
+	g := game.NewGame(480, 800)
 
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)

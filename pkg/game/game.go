@@ -155,7 +155,7 @@ func (g *Game) getDraggingMachine() *MachineState {
 }
 
 // NewGame creates a new Game instance.
-func NewGame() *Game {
+func NewGame(width, height int) *Game {
 	state := &GameState{
 		phase:          PhaseBuild,
 		money:          7,
@@ -169,8 +169,8 @@ func NewGame() *Game {
 	}
 
 	g := &Game{state: state}
-	g.width = 480
-	g.height = 800
+	g.width = width
+	g.height = height
 	g.calculateLayout()
 
 	// Place random End machine
