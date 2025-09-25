@@ -48,7 +48,7 @@ type MachineType int
 const (
 	MachineConveyor MachineType = iota
 	MachineProcessor
-	MachineStart
+	MachineMiner
 	MachineEnd
 )
 
@@ -170,25 +170,17 @@ func NewGame() *Game {
 	g.height = 800
 	g.calculateLayout()
 
-	// Place random Start and End machines within 4 squares
-	startRow := 1 + rand.Intn(displayRows)
-	startCol := 1 + rand.Intn(displayCols)
-	startPos := startRow*gridCols + startCol
+	// Place random End machine
 	endRow := 1 + rand.Intn(displayRows)
 	endCol := 1 + rand.Intn(displayCols)
 	endPos := endRow*gridCols + endCol
-	for manhattan(startPos, endPos) > 4 || endPos == startPos {
-		endRow = 1 + rand.Intn(displayRows)
-		endCol = 1 + rand.Intn(displayCols)
-		endPos = endRow*gridCols + endCol
-	}
 
-	state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: startPos}
 	state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
 
 	state.availableMachines = []*MachineState{
 		{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
 		{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+		{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
 	}
 
 	return g
@@ -360,23 +352,15 @@ func (g *Game) Update() error {
 				animationTick:  0,
 				animationSpeed: 1.0,
 			}
-			// Place random Start and End machines within 4 squares
-			startRow := 1 + rand.Intn(displayRows)
-			startCol := 1 + rand.Intn(displayCols)
-			startPos := startRow*gridCols + startCol
+			// Place random End machine
 			endRow := 1 + rand.Intn(displayRows)
 			endCol := 1 + rand.Intn(displayCols)
 			endPos := endRow*gridCols + endCol
-			for manhattan(startPos, endPos) > 4 || endPos == startPos {
-				endRow = 1 + rand.Intn(displayRows)
-				endCol = 1 + rand.Intn(displayCols)
-				endPos = endRow*gridCols + endCol
-			}
-			g.state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: startPos}
 			g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
 			g.state.availableMachines = []*MachineState{
 				{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
 				{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+				{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
 			}
 		}
 	}
@@ -472,7 +456,7 @@ func (g *Game) handleDragAndDrop() {
 		if dx*dx+dy*dy > 1000 { // threshold
 			selected := g.getSelectedMachine()
 			if selected != nil {
-				if selected.IsPlaced && selected.Machine.GetType() != MachineStart && selected.Machine.GetType() != MachineEnd && selected.RunAdded == g.state.run {
+				if selected.IsPlaced && selected.Machine.GetType() != MachineMiner && selected.Machine.GetType() != MachineEnd && selected.RunAdded == g.state.run {
 					selected.BeingDragged = true
 					pos := g.getPos(selected)
 					selected.OriginalPos = pos
@@ -551,7 +535,7 @@ func (g *Game) handleDragAndDrop() {
 				sellWidth := 120
 				sellHeight := g.bottomHeight - 20
 				if cx >= sellX && cx <= sellX+sellWidth && cy >= sellY && cy <= sellY+sellHeight {
-					if dragging.IsPlaced && dragging.Machine.GetType() != MachineStart && dragging.Machine.GetType() != MachineEnd {
+					if dragging.IsPlaced && dragging.Machine.GetType() != MachineMiner && dragging.Machine.GetType() != MachineEnd {
 						// Sell the machine
 						g.state.money += 1
 						// Remove from grid
@@ -669,9 +653,7 @@ func (g *Game) drawMachines(screen *ebiten.Image) {
 		x := g.gridStartX + (col-1)*(cellSize+gridMargin)
 		y := g.gridStartY + (row-1)*(cellSize+gridMargin)
 		vector.DrawFilledRect(screen, float32(x), float32(y), cellSize, cellSize, ms.Machine.GetColor(), false)
-		if ms.Machine.GetType() == MachineStart {
-			ebitenutil.DebugPrintAt(screen, "Start", int(x)+10, int(y)+20)
-		}
+
 		if ms.Machine.GetType() == MachineEnd {
 			ebitenutil.DebugPrintAt(screen, "End", int(x)+15, int(y)+20)
 		}
