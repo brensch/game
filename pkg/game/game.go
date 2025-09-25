@@ -1,7 +1,6 @@
 package game
 
 import (
-	"encoding/json"
 	"fmt"
 	"image/color"
 	"math/rand"
@@ -70,6 +69,15 @@ const (
 	PhaseRun
 )
 
+// Animation represents a moving object animation.
+type Animation struct {
+	StartX, StartY float64
+	EndX, EndY     float64
+	Color          color.RGBA
+	Duration       float64
+	Elapsed        float64
+}
+
 // GameState holds all information about the current state of the game.
 type GameState struct {
 	phase             GamePhase
@@ -85,6 +93,9 @@ type GameState struct {
 	mousePressed      bool
 	pressX, pressY    int
 	running           bool
+	animations        []*Animation
+	animationTick     int
+	animationSpeed    float64
 }
 
 // Game implements ebiten.Game.
@@ -116,12 +127,15 @@ func NewGame() *Game {
 	rand.Seed(time.Now().UnixNano())
 
 	state := &GameState{
-		phase:    PhaseBuild,
-		money:    7,
-		run:      3,
-		maxRuns:  6,
-		machines: make([]*MachineState, gridCols*gridRows),
-		round:    1,
+		phase:          PhaseBuild,
+		money:          7,
+		run:            3,
+		maxRuns:        6,
+		machines:       make([]*MachineState, gridCols*gridRows),
+		round:          1,
+		animations:     []*Animation{},
+		animationTick:  0,
+		animationSpeed: 1.0,
 	}
 
 	g := &Game{state: state}
@@ -195,15 +209,59 @@ func (g *Game) Update() error {
 	case PhaseBuild:
 		g.handleDragAndDrop()
 	case PhaseRun:
-		changes, _ := SimulateRun(g.state.machines)
-		for i, tickChanges := range changes {
-			fmt.Printf("Tick %d: %d changes\n", i, len(tickChanges))
+		if len(g.state.animations) == 0 {
+			// Start new tick
+			changes, _ := SimulateRun(g.state.machines)
+			if g.state.animationTick >= len(changes) {
+				// All ticks done
+				g.state.phase = PhaseBuild
+				g.state.animationTick = 0
+				g.state.animationSpeed = 1.0
+				break
+			}
+			tickChanges := changes[g.state.animationTick]
+			g.state.animations = []*Animation{}
 			for _, ch := range tickChanges {
-				changejson, _ := json.Marshal(ch)
-				fmt.Printf("  %s\n", string(changejson))
+				if ch.StartObject == nil || ch.EndObject == nil {
+					continue
+				}
+				startGridX := ch.StartObject.GridPosition % gridCols
+				startGridY := ch.StartObject.GridPosition / gridCols
+				endGridX := ch.EndObject.GridPosition % gridCols
+				endGridY := ch.EndObject.GridPosition / gridCols
+				startX := float64(g.gridStartX + startGridX*(cellSize+gridMargin) + cellSize/2)
+				startY := float64(g.gridStartY + startGridY*(cellSize+gridMargin) + cellSize/2)
+				endX := float64(g.gridStartX + endGridX*(cellSize+gridMargin) + cellSize/2)
+				endY := float64(g.gridStartY + endGridY*(cellSize+gridMargin) + cellSize/2)
+				objColor := color.RGBA{R: 255, A: 255}
+				switch ch.StartObject.Type {
+				case ObjectGreen:
+					objColor.G = 255
+				case ObjectBlue:
+					objColor.B = 255
+				}
+				duration := 30.0 / g.state.animationSpeed // frames, decrease over time
+				g.state.animations = append(g.state.animations, &Animation{
+					StartX: startX, StartY: startY,
+					EndX: endX, EndY: endY,
+					Color: objColor, Duration: duration, Elapsed: 0,
+				})
+			}
+			g.state.animationTick++
+			g.state.animationSpeed += 0.3 // speed up significantly each tick
+		}
+		// Update animations
+		for _, anim := range g.state.animations {
+			anim.Elapsed++
+		}
+		// Remove completed animations
+		newAnims := []*Animation{}
+		for _, anim := range g.state.animations {
+			if anim.Elapsed < anim.Duration {
+				newAnims = append(newAnims, anim)
 			}
 		}
-		g.state.phase = PhaseBuild
+		g.state.animations = newAnims
 	}
 
 	// Check for "Start Run" button click
@@ -213,6 +271,9 @@ func (g *Game) Update() error {
 		if cx > 250 && cx < g.screenWidth-30 && cy > g.bottomY+10 && cy < g.bottomY+10+g.bottomHeight-20 {
 			if g.state.phase == PhaseBuild {
 				g.state.phase = PhaseRun
+				g.state.animations = []*Animation{}
+				g.state.animationTick = 0
+				g.state.animationSpeed = 1.0
 			}
 		}
 	}
@@ -497,6 +558,17 @@ func (g *Game) drawObjects(screen *ebiten.Image) {
 		x := g.gridStartX + gridX*(cellSize+gridMargin) + cellSize/2
 		y := g.gridStartY + gridY*(cellSize+gridMargin) + cellSize/2
 		vector.DrawFilledCircle(screen, float32(x), float32(y), 10, objColor, false)
+	}
+
+	// Draw animations
+	for _, anim := range g.state.animations {
+		progress := anim.Elapsed / anim.Duration
+		if progress > 1 {
+			progress = 1
+		}
+		x := anim.StartX + (anim.EndX-anim.StartX)*progress
+		y := anim.StartY + (anim.EndY-anim.StartY)*progress
+		vector.DrawFilledCircle(screen, float32(x), float32(y), 10, anim.Color, false)
 	}
 }
 
