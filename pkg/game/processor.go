@@ -18,10 +18,18 @@ func (p *Processor) GetColor() color.RGBA {
 }
 
 // Process handles object interaction for processor.
-func (p *Processor) Process(obj *Object, game *Game, state *MachineState) bool {
-	// Change object type
-	obj.Type = (obj.Type + 1) % 3
-	return false
+func (p *Processor) Process(position int, objects []*Object, round int) *Change {
+	for _, obj := range objects {
+		if obj.GridPosition == position {
+			return &Change{
+				Type:         ChangeTypeMove,
+				FromPosition: position,
+				ToPosition:   position + 1,
+				// Note: processing changes type, but for now, just move
+			}
+		}
+	}
+	return nil
 }
 
 // EmitEffects emits effects from processor.

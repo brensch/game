@@ -34,6 +34,14 @@ const (
 	ObjectBlue
 )
 
+// Object represents an item moving through the factory.
+type Object struct {
+	GridPosition int
+	X, Y         float64
+	Type         ObjectType
+	pathIndex    int
+}
+
 // MachineType represents the different kinds of machines.
 type MachineType int
 
@@ -43,21 +51,6 @@ const (
 	MachineStart
 	MachineEnd
 )
-
-// GamePhase represents the current state of the game (building or running).
-type GamePhase int
-
-const (
-	PhaseBuild GamePhase = iota
-	PhaseRun
-)
-
-// Object represents an item moving through the factory.
-type Object struct {
-	X, Y      float64
-	Type      ObjectType
-	pathIndex int
-}
 
 // Machine represents a machine on the factory floor.
 type Machine struct {
@@ -71,6 +64,14 @@ type Machine struct {
 	Effects      []Effect
 }
 
+// GamePhase represents the current state of the game (building or running).
+type GamePhase int
+
+const (
+	PhaseBuild GamePhase = iota
+	PhaseRun
+)
+
 // GameState holds all information about the current state of the game.
 type GameState struct {
 	phase                    GamePhase
@@ -79,19 +80,20 @@ type GameState struct {
 	maxRuns                  int
 	baseScore                int
 	multiplier               int
-	machinesOnGrid           []*MachineState
-	availableMachines        []*MachineState
+	machines                 map[int]*MachineState
+	availableMachines        []*Machine
 	objects                  []*Object
-	draggingMachine          *MachineState
+	draggingMachine          *Machine
 	dragOffsetX, dragOffsetY int
-	startMachine             *MachineState
-	endMachine               *MachineState
-	currentRound             int
+	startMachine             *Machine
+	endMachine               *Machine
+	round                    int
 }
 
 // Game implements ebiten.Game.
 type Game struct {
 	state                                                                    *GameState
+	machines                                                                 []*Machine
 	width, height                                                            int
 	topPanelHeight, foremanHeight, gridHeight, availableHeight, bottomHeight int
 	topPanelY, foremanY, gridStartY, availableY, bottomY                     int
@@ -103,14 +105,12 @@ func NewGame() *Game {
 	rand.Seed(time.Now().UnixNano())
 
 	state := &GameState{
-		phase:          PhaseBuild,
-		money:          7,
-		run:            3,
-		maxRuns:        6,
-		baseScore:      0,
-		multiplier:     1,
-		machinesOnGrid: make([]*MachineState, gridCols*gridRows),
-		currentRound:   1,
+		phase:    PhaseBuild,
+		money:    7,
+		run:      3,
+		maxRuns:  6,
+		machines: make(map[int]*MachineState),
+		round:    1,
 	}
 
 	g := &Game{state: state}
@@ -118,30 +118,63 @@ func NewGame() *Game {
 	g.height = 800
 	g.calculateLayout()
 
-	state.availableMachines = []*MachineState{
-		{Machine: &Conveyor{}, X: g.gridStartX, Y: g.availableY, IsPlaced: false},
-		{Machine: &Processor{}, X: g.gridStartX + cellSize + gridMargin, Y: g.availableY, IsPlaced: false},
-	}
-
 	// Place fixed Start and End machines
-	startX, startY := 3, 5
-	endX, endY := 1, 3
+	startPos := 0
+	endPos := gridCols*gridRows - 1
 
-	state.startMachine = &MachineState{
-		Machine: &Start{}, GridX: startX, GridY: startY,
-		X: g.gridStartX + startX*(cellSize+gridMargin), Y: g.gridStartY + startY*(cellSize+gridMargin),
-		IsPlaced: true, RoundAdded: 0,
-	}
-	state.machinesOnGrid[startX*gridRows+startY] = state.startMachine
+	state.startMachine = &Machine{Type: MachineStart, GridX: startPos % gridCols, GridY: startPos / gridCols, IsPlaced: true, RoundAdded: 0, Color: color.RGBA{R: 150, G: 255, B: 150, A: 255}}
+	state.endMachine = &Machine{Type: MachineEnd, GridX: endPos % gridCols, GridY: endPos / gridCols, IsPlaced: true, RoundAdded: 0, Color: color.RGBA{R: 255, G: 150, B: 150, A: 255}}
 
-	state.endMachine = &MachineState{
-		Machine: &End{}, GridX: endX, GridY: endY,
-		X: g.gridStartX + endX*(cellSize+gridMargin), Y: g.gridStartY + endY*(cellSize+gridMargin),
-		IsPlaced: true, RoundAdded: 0,
+	state.machines[startPos] = &MachineState{Machine: &Start{}, IsPlaced: true, RoundAdded: 0}
+	state.machines[endPos] = &MachineState{Machine: &End{}, IsPlaced: true, RoundAdded: 0}
+
+	g.machines = []*Machine{
+		&Machine{Type: MachineConveyor, X: 0, Y: 0, IsDraggable: true, IsPlaced: false, Color: color.RGBA{R: 200, G: 200, B: 200, A: 255}},
+		&Machine{Type: MachineProcessor, X: 0, Y: 0, IsDraggable: true, IsPlaced: false, Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}},
+		state.startMachine,
+		state.endMachine,
 	}
-	state.machinesOnGrid[endX*gridRows+endY] = state.endMachine
+
+	state.availableMachines = []*Machine{g.machines[0], g.machines[1]}
 
 	return g
+}
+
+func createMachine(mt MachineType) MachineInterface {
+	switch mt {
+	case MachineConveyor:
+		return &Conveyor{}
+	case MachineProcessor:
+		return &Processor{}
+	case MachineStart:
+		return &Start{}
+	case MachineEnd:
+		return &End{}
+	}
+	return nil
+}
+
+func applyChanges(changes []*Change, objects *[]*Object) {
+	for _, change := range changes {
+		switch change.Type {
+		case ChangeTypeCreate:
+			*objects = append(*objects, &Object{GridPosition: change.GridPosition, Type: change.ObjectType})
+		case ChangeTypeMove:
+			for i, obj := range *objects {
+				if obj.GridPosition == change.FromPosition {
+					(*objects)[i].GridPosition = change.ToPosition
+					break
+				}
+			}
+		case ChangeTypeDelete:
+			for i, obj := range *objects {
+				if obj.GridPosition == change.GridPosition {
+					*objects = append((*objects)[:i], (*objects)[i+1:]...)
+					break
+				}
+			}
+		}
+	}
 }
 
 func (g *Game) calculateLayout() {
@@ -180,17 +213,11 @@ func (g *Game) Update() error {
 		if cx > 250 && cx < g.screenWidth-30 && cy > g.bottomY+10 && cy < g.bottomY+10+g.bottomHeight-20 {
 			if g.state.phase == PhaseBuild {
 				g.state.phase = PhaseRun
-				// Spawn a test object
-				g.state.objects = append(g.state.objects, &Object{
-					X:    float64(g.state.startMachine.X + cellSize/2),
-					Y:    float64(g.state.startMachine.Y + cellSize/2),
-					Type: ObjectType(rand.Intn(3)),
-				})
 			} else {
 				g.state.phase = PhaseBuild
 				g.state.objects = nil // Clear objects
 				g.state.baseScore = 0 // Reset score
-				g.state.currentRound++
+				g.state.round++
 			}
 		}
 	}
@@ -204,9 +231,7 @@ func (g *Game) handleDragAndDrop() {
 		// Check if we are picking up a new machine
 		for _, m := range g.state.availableMachines {
 			if !m.IsPlaced && cx >= m.X && cx <= m.X+cellSize && cy >= m.Y && cy <= m.Y+cellSize {
-				g.state.draggingMachine = &MachineState{
-					Machine: m.Machine, X: m.X, Y: m.Y, IsPlaced: false,
-				}
+				g.state.draggingMachine = m
 				g.state.dragOffsetX = cx - m.X
 				g.state.dragOffsetY = cy - m.Y
 				break
@@ -217,15 +242,19 @@ func (g *Game) handleDragAndDrop() {
 		if g.state.draggingMachine == nil {
 			for col := 0; col < gridCols; col++ {
 				for row := 0; row < gridRows; row++ {
-					if m := g.state.machinesOnGrid[col*gridRows+row]; m != nil {
-						if m.RoundAdded == g.state.currentRound {
-							if cx >= m.X && cx <= m.X+cellSize && cy >= m.Y && cy <= m.Y+cellSize {
-								g.state.draggingMachine = m
-								g.state.dragOffsetX = cx - m.X
-								g.state.dragOffsetY = cy - m.Y
-								// Remove from grid temporarily
-								g.state.machinesOnGrid[col*gridRows+row] = nil
-								break
+					position := col*gridRows + row
+					if ms, ok := g.state.machines[position]; ok {
+						if ms.RoundAdded == g.state.round {
+							// Find the UI machine
+							for _, m := range g.machines {
+								if m.GridX == col && m.GridY == row && m.IsPlaced {
+									g.state.draggingMachine = m
+									g.state.dragOffsetX = cx - m.X
+									g.state.dragOffsetY = cy - m.Y
+									delete(g.state.machines, position)
+									m.IsPlaced = false
+									break
+								}
 							}
 						}
 					}
@@ -252,7 +281,7 @@ func (g *Game) handleDragAndDrop() {
 				col := (cx - g.gridStartX) / (cellSize + gridMargin)
 				row := (cy - g.gridStartY) / (cellSize + gridMargin)
 
-				if g.state.machinesOnGrid[col*gridRows+row] == nil {
+				if _, ok := g.state.machines[col*gridRows+row]; !ok {
 					gridX, gridY = col, row
 				}
 			}
@@ -270,11 +299,10 @@ func (g *Game) handleDragAndDrop() {
 				}
 				dm.GridX = gridX
 				dm.GridY = gridY
-				dm.X = g.gridStartX + gridX*(cellSize+gridMargin)
-				dm.Y = g.gridStartY + gridY*(cellSize+gridMargin)
 				dm.IsPlaced = true
-				dm.RoundAdded = g.state.currentRound
-				g.state.machinesOnGrid[gridX*gridRows+gridY] = g.state.draggingMachine
+				dm.RoundAdded = g.state.round
+				position := gridY*gridCols + gridX
+				g.state.machines[position] = &MachineState{Machine: createMachine(dm.Type), IsPlaced: true, RoundAdded: g.state.round}
 				g.state.draggingMachine = nil
 			} else {
 				// Dropped elsewhere, discard
@@ -285,26 +313,20 @@ func (g *Game) handleDragAndDrop() {
 }
 
 func (g *Game) updateRun() {
-	// Basic logic: move objects towards the end machine
-	for _, obj := range g.state.objects {
-		if obj.X < float64(g.state.endMachine.X+cellSize/2) {
-			obj.X += 1
-		} else if obj.X > float64(g.state.endMachine.X+cellSize/2) {
-			obj.X -= 1
+	var changes []*Change
+	for pos, ms := range g.state.machines {
+		if change := ms.Machine.Process(pos, g.state.objects, g.state.round); change != nil {
+			changes = append(changes, change)
 		}
-		if obj.Y < float64(g.state.endMachine.Y+cellSize/2) {
-			obj.Y += 1
-		} else if obj.Y > float64(g.state.endMachine.Y+cellSize/2) {
-			obj.Y -= 1
-		}
+	}
+	applyChanges(changes, &g.state.objects)
 
-		// Check if object reached the end
-		distX := obj.X - float64(g.state.endMachine.X+cellSize/2)
-		distY := obj.Y - float64(g.state.endMachine.Y+cellSize/2)
-		if distX*distX+distY*distY < 10*10 { // Within 10 pixels
-			g.state.baseScore += 1 // Score!
-			// For now, just remove the object. In a real game, you'd handle it differently.
-			g.state.objects = g.state.objects[1:]
+	// Remove invalid objects
+	for i := 0; i < len(g.state.objects); i++ {
+		obj := g.state.objects[i]
+		if obj.GridPosition < 0 || obj.GridPosition >= gridCols*gridRows {
+			g.state.objects = append(g.state.objects[:i], g.state.objects[i+1:]...)
+			i--
 		}
 	}
 }
@@ -320,7 +342,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// Draw the dragging machine on top
 	if g.state.draggingMachine != nil {
 		dm := g.state.draggingMachine
-		vector.DrawFilledRect(screen, float32(dm.X), float32(dm.Y), cellSize, cellSize, dm.Machine.GetColor(), false)
+		vector.DrawFilledRect(screen, float32(dm.X), float32(dm.Y), cellSize, cellSize, dm.Color, false)
 	}
 }
 
@@ -333,7 +355,7 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 	vector.DrawFilledRect(screen, 10, float32(g.foremanY), float32(g.screenWidth-20), float32(g.foremanHeight), color.RGBA{R: 100, G: 100, B: 100, A: 255}, false)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Money: $%d", g.state.money), 20, g.foremanY+20)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Run: %d/%d", g.state.run, g.state.maxRuns), 200, g.foremanY+20)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round: %d", g.state.currentRound), 200, g.foremanY+50)
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round: %d", g.state.round), 200, g.foremanY+50)
 
 	// Bottom Panel
 	vector.DrawFilledRect(screen, 10, float32(g.bottomY), float32(g.screenWidth-20), float32(g.bottomHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
@@ -368,24 +390,24 @@ func (g *Game) drawFactoryFloor(screen *ebiten.Image) {
 
 func (g *Game) drawMachines(screen *ebiten.Image) {
 	// Machines on the grid
-	for col := 0; col < gridCols; col++ {
-		for row := 0; row < gridRows; row++ {
-			if m := g.state.machinesOnGrid[col*gridRows+row]; m != nil {
-				vector.DrawFilledRect(screen, float32(m.X), float32(m.Y), cellSize, cellSize, m.Machine.GetColor(), false)
-				if m.Machine.GetType() == MachineStart {
-					ebitenutil.DebugPrintAt(screen, "Start", m.X+10, m.Y+20)
-				}
-				if m.Machine.GetType() == MachineEnd {
-					ebitenutil.DebugPrintAt(screen, "End", m.X+15, m.Y+20)
-				}
-			}
+	for pos, ms := range g.state.machines {
+		col := pos % gridCols
+		row := pos / gridCols
+		x := g.gridStartX + col*(cellSize+gridMargin)
+		y := g.gridStartY + row*(cellSize+gridMargin)
+		vector.DrawFilledRect(screen, float32(x), float32(y), cellSize, cellSize, ms.Machine.GetColor(), false)
+		if ms.Machine.GetType() == MachineStart {
+			ebitenutil.DebugPrintAt(screen, "Start", int(x)+10, int(y)+20)
+		}
+		if ms.Machine.GetType() == MachineEnd {
+			ebitenutil.DebugPrintAt(screen, "End", int(x)+15, int(y)+20)
 		}
 	}
 
 	// Available machines
 	for _, m := range g.state.availableMachines {
 		if !m.IsPlaced {
-			vector.DrawFilledRect(screen, float32(m.X), float32(m.Y), cellSize, cellSize, m.Machine.GetColor(), false)
+			vector.DrawFilledRect(screen, float32(m.X), float32(m.Y), cellSize, cellSize, m.Color, false)
 		}
 	}
 }
@@ -399,7 +421,11 @@ func (g *Game) drawObjects(screen *ebiten.Image) {
 		case ObjectBlue:
 			objColor.B = 255
 		}
-		vector.DrawFilledCircle(screen, float32(obj.X), float32(obj.Y), 10, objColor, false)
+		gridX := obj.GridPosition % gridCols
+		gridY := obj.GridPosition / gridCols
+		x := g.gridStartX + gridX*(cellSize+gridMargin) + cellSize/2
+		y := g.gridStartY + gridY*(cellSize+gridMargin) + cellSize/2
+		vector.DrawFilledCircle(screen, float32(x), float32(y), 10, objColor, false)
 	}
 }
 
@@ -410,26 +436,10 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	g.calculateLayout()
 
 	// Update machine positions
-	startX, startY := 3, 5
-	endX, endY := 1, 3
-
-	if g.state.startMachine != nil {
-		g.state.startMachine.X = g.gridStartX + startX*(cellSize+gridMargin)
-		g.state.startMachine.Y = g.gridStartY + startY*(cellSize+gridMargin)
-	}
-
-	if g.state.endMachine != nil {
-		g.state.endMachine.X = g.gridStartX + endX*(cellSize+gridMargin)
-		g.state.endMachine.Y = g.gridStartY + endY*(cellSize+gridMargin)
-	}
-
-	// Update grid machines
-	for i := 0; i < gridCols*gridRows; i++ {
-		if m := g.state.machinesOnGrid[i]; m != nil {
-			col := i / gridRows
-			row := i % gridRows
-			m.X = g.gridStartX + col*(cellSize+gridMargin)
-			m.Y = g.gridStartY + row*(cellSize+gridMargin)
+	for _, m := range g.machines {
+		if m.IsPlaced {
+			m.X = g.gridStartX + m.GridX*(cellSize+gridMargin)
+			m.Y = g.gridStartY + m.GridY*(cellSize+gridMargin)
 		}
 	}
 

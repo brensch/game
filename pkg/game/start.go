@@ -18,9 +18,22 @@ func (s *Start) GetColor() color.RGBA {
 }
 
 // Process handles object interaction for start.
-func (s *Start) Process(obj *Object, game *Game, state *MachineState) bool {
-	// Start machine emits objects, doesn't process them
-	return false
+func (s *Start) Process(position int, objects []*Object, round int) *Change {
+	if round%60 == 0 {
+		// Check if object already at position
+		for _, obj := range objects {
+			if obj.GridPosition == position {
+				return nil
+			}
+		}
+		// Emit to next position
+		return &Change{
+			Type:         ChangeTypeCreate,
+			GridPosition: position + 1,
+			ObjectType:   ObjectRed,
+		}
+	}
+	return nil
 }
 
 // EmitEffects emits effects from start.

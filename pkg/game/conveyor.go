@@ -18,10 +18,17 @@ func (c *Conveyor) GetColor() color.RGBA {
 }
 
 // Process handles object interaction for conveyor.
-func (c *Conveyor) Process(obj *Object, game *Game, state *MachineState) bool {
-	// Move object down
-	obj.Y += 5
-	return false
+func (c *Conveyor) Process(position int, objects []*Object, round int) *Change {
+	for _, obj := range objects {
+		if obj.GridPosition == position {
+			return &Change{
+				Type:         ChangeTypeMove,
+				FromPosition: position,
+				ToPosition:   position + 1, // move right
+			}
+		}
+	}
+	return nil
 }
 
 // EmitEffects emits effects from conveyor.

@@ -18,10 +18,16 @@ func (e *End) GetColor() color.RGBA {
 }
 
 // Process handles object interaction for end.
-func (e *End) Process(obj *Object, game *Game, state *MachineState) bool {
-	// End machine consumes objects, adds score
-	game.state.baseScore++
-	return true // consumed
+func (e *End) Process(position int, objects []*Object, round int) *Change {
+	for _, obj := range objects {
+		if obj.GridPosition == position {
+			return &Change{
+				Type:         ChangeTypeDelete,
+				GridPosition: position,
+			}
+		}
+	}
+	return nil
 }
 
 // EmitEffects emits effects from end.
