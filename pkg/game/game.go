@@ -13,18 +13,16 @@ import (
 )
 
 const (
-	screenWidth  = 480
-	screenHeight = 800
+	topPanelHeight  = 80
+	foremanHeight   = 80
+	availableHeight = 60
+	bottomHeight    = 60
+	minGap          = 10
 
 	gridCols   = 7
 	gridRows   = 7
 	cellSize   = 60
 	gridMargin = 10
-	gridStartX = (screenWidth - (gridCols * cellSize) - (gridCols-1)*gridMargin) / 2
-	gridStartY = 200
-
-	machinePanelY = gridStartY + gridRows*cellSize + (gridRows-1)*gridMargin + 20
-	machinePanelX = gridStartX
 )
 
 // ObjectType represents the different kinds of items that can move through the factory.
@@ -92,7 +90,11 @@ type GameState struct {
 
 // Game implements ebiten.Game.
 type Game struct {
-	state *GameState
+	state                                                                    *GameState
+	width, height                                                            int
+	topPanelHeight, foremanHeight, gridHeight, availableHeight, bottomHeight int
+	topPanelY, foremanY, gridStartY, availableY, bottomY                     int
+	screenWidth, gridStartX                                                  int
 }
 
 // NewGame creates a new Game instance.
@@ -107,11 +109,17 @@ func NewGame() *Game {
 		baseScore:      0,
 		multiplier:     1,
 		machinesOnGrid: make([]*Machine, gridCols*gridRows),
-		availableMachines: []*Machine{
-			{X: machinePanelX, Y: machinePanelY, Type: MachineConveyor, Color: color.RGBA{R: 200, G: 200, B: 200, A: 255}, IsDraggable: true},
-			{X: machinePanelX + cellSize + gridMargin, Y: machinePanelY, Type: MachineProcessor, Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, IsDraggable: true},
-		},
-		currentRound: 1,
+		currentRound:   1,
+	}
+
+	g := &Game{state: state}
+	g.width = 480
+	g.height = 800
+	g.calculateLayout()
+
+	state.availableMachines = []*Machine{
+		{X: g.gridStartX, Y: g.availableY, Type: MachineConveyor, Color: color.RGBA{R: 200, G: 200, B: 200, A: 255}, IsDraggable: true},
+		{X: g.gridStartX + cellSize + gridMargin, Y: g.availableY, Type: MachineProcessor, Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, IsDraggable: true},
 	}
 
 	// Place fixed Start and End machines
@@ -120,19 +128,42 @@ func NewGame() *Game {
 
 	state.startMachine = &Machine{
 		GridX: startX, GridY: startY,
-		X: gridStartX + startX*(cellSize+gridMargin), Y: gridStartY + startY*(cellSize+gridMargin),
+		X: g.gridStartX + startX*(cellSize+gridMargin), Y: g.gridStartY + startY*(cellSize+gridMargin),
 		Type: MachineStart, Color: color.RGBA{R: 150, G: 255, B: 150, A: 255}, RoundAdded: 0,
 	}
 	state.machinesOnGrid[startX*gridRows+startY] = state.startMachine
 
 	state.endMachine = &Machine{
 		GridX: endX, GridY: endY,
-		X: gridStartX + endX*(cellSize+gridMargin), Y: gridStartY + endY*(cellSize+gridMargin),
+		X: g.gridStartX + endX*(cellSize+gridMargin), Y: g.gridStartY + endY*(cellSize+gridMargin),
 		Type: MachineEnd, Color: color.RGBA{R: 255, G: 150, B: 150, A: 255}, RoundAdded: 0,
 	}
 	state.machinesOnGrid[endX*gridRows+endY] = state.endMachine
 
-	return &Game{state: state}
+	return g
+}
+
+func (g *Game) calculateLayout() {
+	g.topPanelHeight = topPanelHeight
+	g.foremanHeight = foremanHeight
+	g.availableHeight = availableHeight
+	g.bottomHeight = bottomHeight
+
+	gridHeight := gridRows*cellSize + (gridRows-1)*gridMargin
+	total_fixed := g.topPanelHeight + g.foremanHeight + gridHeight + g.availableHeight + g.bottomHeight
+	remaining := g.height - total_fixed
+	num_gaps := 4
+	gap := remaining / num_gaps
+	if gap < minGap {
+		gap = minGap
+	}
+	g.topPanelY = gap
+	g.foremanY = g.topPanelY + g.topPanelHeight + gap
+	g.gridStartY = g.foremanY + g.foremanHeight + gap
+	g.availableY = g.gridStartY + gridHeight + gap
+	g.bottomY = g.availableY + g.availableHeight + gap
+	g.screenWidth = g.width
+	g.gridStartX = (g.screenWidth - (gridCols*cellSize + (gridCols-1)*gridMargin)) / 2
 }
 
 // Update proceeds the game state.
@@ -148,7 +179,7 @@ func (g *Game) Update() error {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		cx, cy := ebiten.CursorPosition()
 		// Simple button detection for "Start Run"
-		if cx > 300 && cx < 450 && cy > 720 && cy < 780 {
+		if cx > 250 && cx < 400 && cy > g.bottomY+10 && cy < g.bottomY+10+g.bottomHeight-20 {
 			if g.state.phase == PhaseBuild {
 				g.state.phase = PhaseRun
 				// Spawn a test object
@@ -215,12 +246,12 @@ func (g *Game) handleDragAndDrop() {
 		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 			gridX, gridY := -1, -1
 			// Check if dropped on the grid
-			if cx > gridStartX && cx < gridStartX+gridCols*(cellSize+gridMargin) &&
-				cy > gridStartY && cy < gridStartY+gridRows*(cellSize+gridMargin) {
+			if cx > g.gridStartX && cx < g.gridStartX+gridCols*(cellSize+gridMargin) &&
+				cy > g.gridStartY && cy < g.gridStartY+gridRows*(cellSize+gridMargin) {
 
 				// Snap to grid
-				col := (cx - gridStartX) / (cellSize + gridMargin)
-				row := (cy - gridStartY) / (cellSize + gridMargin)
+				col := (cx - g.gridStartX) / (cellSize + gridMargin)
+				row := (cy - g.gridStartY) / (cellSize + gridMargin)
 
 				if g.state.machinesOnGrid[col*gridRows+row] == nil {
 					gridX, gridY = col, row
@@ -228,7 +259,7 @@ func (g *Game) handleDragAndDrop() {
 			}
 
 			// Check if dropped on sell area
-			sellX, sellY, sellW, sellH := 10, 650, 120, 60
+			sellX, sellY, sellW, sellH := 10, g.bottomY+10, 120, g.bottomHeight-20
 			if cx >= sellX && cx <= sellX+sellW && cy >= sellY && cy <= sellY+sellH {
 				// Sell the machine, refund money
 				g.state.money += 1
@@ -240,8 +271,8 @@ func (g *Game) handleDragAndDrop() {
 				}
 				g.state.draggingMachine.GridX = gridX
 				g.state.draggingMachine.GridY = gridY
-				g.state.draggingMachine.X = gridStartX + gridX*(cellSize+gridMargin)
-				g.state.draggingMachine.Y = gridStartY + gridY*(cellSize+gridMargin)
+				g.state.draggingMachine.X = g.gridStartX + gridX*(cellSize+gridMargin)
+				g.state.draggingMachine.Y = g.gridStartY + gridY*(cellSize+gridMargin)
 				g.state.draggingMachine.IsPlaced = true
 				g.state.draggingMachine.RoundAdded = g.state.currentRound
 				g.state.machinesOnGrid[gridX*gridRows+gridY] = g.state.draggingMachine
@@ -294,20 +325,25 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) drawUI(screen *ebiten.Image) {
-	// Top panel
-	vector.DrawFilledRect(screen, 10, 10, screenWidth-20, 80, color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
+	// Top panel - Total Score
+	vector.DrawFilledRect(screen, 10, float32(g.topPanelY), float32(g.screenWidth-20), float32(g.topPanelHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Total Score: %d x %d = %d", g.state.baseScore, g.state.multiplier, g.state.baseScore*g.state.multiplier), 20, g.topPanelY+20)
 
-	// Money
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Money: $%d", g.state.money), 20, 20)
-
-	// Run
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Run: %d/%d", g.state.run, g.state.maxRuns), 200, 20)
-
-	// Score
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Total Score: %d x %d = %d", g.state.baseScore, g.state.multiplier, g.state.baseScore*g.state.multiplier), 150, 60)
+	// Foreman panel - Money and Run
+	vector.DrawFilledRect(screen, 10, float32(g.foremanY), float32(g.screenWidth-20), float32(g.foremanHeight), color.RGBA{R: 100, G: 100, B: 100, A: 255}, false)
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Money: $%d", g.state.money), 20, g.foremanY+20)
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Run: %d/%d", g.state.run, g.state.maxRuns), 200, g.foremanY+20)
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round: %d", g.state.currentRound), 200, g.foremanY+50)
 
 	// Bottom Panel
-	vector.DrawFilledRect(screen, 10, 710, screenWidth-20, 80, color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
+	vector.DrawFilledRect(screen, 10, float32(g.bottomY), float32(g.screenWidth-20), float32(g.bottomHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
+
+	// Sell Area
+	vector.DrawFilledRect(screen, 10, float32(g.bottomY+10), 120, float32(g.bottomHeight-20), color.RGBA{R: 255, G: 100, B: 100, A: 255}, false)
+	ebitenutil.DebugPrintAt(screen, "Sell", 30, g.bottomY+20)
+
+	// Current Round Score
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round Score: %d", g.state.baseScore), 140, g.bottomY+20)
 
 	// Start/Stop Run Button
 	runButtonColor := color.RGBA{R: 100, G: 200, B: 100, A: 255}
@@ -316,19 +352,15 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 		runButtonColor = color.RGBA{R: 200, G: 100, B: 100, A: 255}
 		runButtonText = "Stop Run"
 	}
-	vector.DrawFilledRect(screen, 300, 720, 150, 60, runButtonColor, false)
-	ebitenutil.DebugPrintAt(screen, runButtonText, 330, 740)
-
-	// Sell Area
-	vector.DrawFilledRect(screen, 10, 650, 120, 60, color.RGBA{R: 255, G: 100, B: 100, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, "Sell Zone", 20, 670)
+	vector.DrawFilledRect(screen, 250, float32(g.bottomY+10), 150, float32(g.bottomHeight-20), runButtonColor, false)
+	ebitenutil.DebugPrintAt(screen, runButtonText, 270, g.bottomY+20)
 }
 
 func (g *Game) drawFactoryFloor(screen *ebiten.Image) {
 	for r := 0; r < gridRows; r++ {
 		for c := 0; c < gridCols; c++ {
-			x := gridStartX + c*(cellSize+gridMargin)
-			y := gridStartY + r*(cellSize+gridMargin)
+			x := g.gridStartX + c*(cellSize+gridMargin)
+			y := g.gridStartY + r*(cellSize+gridMargin)
 			vector.DrawFilledRect(screen, float32(x), float32(y), cellSize, cellSize, color.RGBA{R: 60, G: 60, B: 60, A: 255}, false)
 		}
 	}
@@ -373,5 +405,43 @@ func (g *Game) drawObjects(screen *ebiten.Image) {
 
 // Layout takes the outside size (e.g., the window size) and returns the (logical) screen size.
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return screenWidth, screenHeight
+	g.width = outsideWidth
+	g.height = outsideHeight
+	g.calculateLayout()
+
+	// Update machine positions
+	startX, startY := 3, 5
+	endX, endY := 1, 3
+
+	if g.state.startMachine != nil {
+		g.state.startMachine.X = g.gridStartX + startX*(cellSize+gridMargin)
+		g.state.startMachine.Y = g.gridStartY + startY*(cellSize+gridMargin)
+	}
+
+	if g.state.endMachine != nil {
+		g.state.endMachine.X = g.gridStartX + endX*(cellSize+gridMargin)
+		g.state.endMachine.Y = g.gridStartY + endY*(cellSize+gridMargin)
+	}
+
+	// Update grid machines
+	for i := 0; i < gridCols*gridRows; i++ {
+		if m := g.state.machinesOnGrid[i]; m != nil {
+			col := i / gridRows
+			row := i % gridRows
+			m.X = g.gridStartX + col*(cellSize+gridMargin)
+			m.Y = g.gridStartY + row*(cellSize+gridMargin)
+		}
+	}
+
+	// Update available machines
+	if len(g.state.availableMachines) > 0 {
+		g.state.availableMachines[0].X = g.gridStartX
+		g.state.availableMachines[0].Y = g.availableY
+	}
+	if len(g.state.availableMachines) > 1 {
+		g.state.availableMachines[1].X = g.gridStartX + cellSize + gridMargin
+		g.state.availableMachines[1].Y = g.availableY
+	}
+
+	return outsideWidth, outsideHeight
 }

@@ -11,6 +11,7 @@ import (
 func main() {
 	ebiten.SetWindowSize(480, 800)
 	ebiten.SetWindowTitle("Factory game")
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
 	// Target the second monitor
 	var monitors []*ebiten.MonitorType
