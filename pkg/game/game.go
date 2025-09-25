@@ -59,6 +59,14 @@ type Object struct {
 	pathIndex int
 }
 
+// MachineInterface defines the behavior for different machine types.
+type MachineInterface interface {
+	GetType() MachineType
+	GetColor() color.RGBA
+	CanMove(round int) bool
+	Process(obj *Object, game *Game) bool
+}
+
 // Machine represents a machine on the factory floor.
 type Machine struct {
 	X, Y         int
@@ -68,6 +76,48 @@ type Machine struct {
 	IsDraggable  bool
 	IsPlaced     bool
 	RoundAdded   int
+}
+
+// GetType returns the machine type.
+func (m *Machine) GetType() MachineType {
+	return m.Type
+}
+
+// GetColor returns the machine color.
+func (m *Machine) GetColor() color.RGBA {
+	if c, ok := m.Color.(color.RGBA); ok {
+		return c
+	}
+	return color.RGBA{R: 128, G: 128, B: 128, A: 255} // default
+}
+
+// CanMove checks if the machine can be moved based on the current round.
+func (m *Machine) CanMove(round int) bool {
+	return round > m.RoundAdded
+}
+
+// Process handles object interaction based on machine type.
+func (m *Machine) Process(obj *Object, game *Game) bool {
+	switch m.Type {
+	case MachineStart:
+		// Start machine emits objects, doesn't process them
+		return false
+	case MachineEnd:
+		// End machine consumes objects, adds score
+		game.state.baseScore++
+		return true // consumed
+	case MachineConveyor:
+		// Move object to next position
+		// For now, simple move down
+		obj.Y += 5
+		return false
+	case MachineProcessor:
+		// Change object type or something
+		obj.Type = (obj.Type + 1) % 3
+		return false
+	default:
+		return false
+	}
 }
 
 // GameState holds all information about the current state of the game.
@@ -150,12 +200,9 @@ func (g *Game) calculateLayout() {
 	g.bottomHeight = bottomHeight
 
 	gridHeight := gridRows*cellSize + (gridRows-1)*gridMargin
-	total_fixed := g.topPanelHeight + g.foremanHeight + gridHeight + g.availableHeight + g.bottomHeight
-	remaining := g.height - total_fixed
-	num_gaps := 4
-	gap := remaining / num_gaps
-	if gap < minGap {
-		gap = minGap
+	gap := (g.height - 760) / 5
+	if gap < 0 {
+		gap = 0
 	}
 	g.topPanelY = gap
 	g.foremanY = g.topPanelY + g.topPanelHeight + gap
@@ -179,7 +226,7 @@ func (g *Game) Update() error {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		cx, cy := ebiten.CursorPosition()
 		// Simple button detection for "Start Run"
-		if cx > 250 && cx < 400 && cy > g.bottomY+10 && cy < g.bottomY+10+g.bottomHeight-20 {
+		if cx > 250 && cx < g.screenWidth-30 && cy > g.bottomY+10 && cy < g.bottomY+10+g.bottomHeight-20 {
 			if g.state.phase == PhaseBuild {
 				g.state.phase = PhaseRun
 				// Spawn a test object
@@ -352,8 +399,8 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 		runButtonColor = color.RGBA{R: 200, G: 100, B: 100, A: 255}
 		runButtonText = "Stop Run"
 	}
-	vector.DrawFilledRect(screen, 250, float32(g.bottomY+10), 150, float32(g.bottomHeight-20), runButtonColor, false)
-	ebitenutil.DebugPrintAt(screen, runButtonText, 270, g.bottomY+20)
+	vector.DrawFilledRect(screen, 250, float32(g.bottomY+10), float32(g.screenWidth-30-250), float32(g.bottomHeight-20), runButtonColor, false)
+	ebitenutil.DebugPrintAt(screen, runButtonText, 260, g.bottomY+20)
 }
 
 func (g *Game) drawFactoryFloor(screen *ebiten.Image) {
