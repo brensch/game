@@ -22,17 +22,7 @@ func (p *Processor) Process(position int, history [][]*Object, tick int, orienta
 	current := history[len(history)-1]
 	for _, obj := range current {
 		if obj.GridPosition == position {
-			nextPos := position + 1 // default east
-			switch orientation {
-			case OrientationNorth:
-				nextPos = position - 7
-			case OrientationEast:
-				nextPos = position + 1
-			case OrientationSouth:
-				nextPos = position + 7
-			case OrientationWest:
-				nextPos = position - 1
-			}
+			nextPos := GetAdjacentPosition(position, orientation)
 			return []*Change{{
 				StartObject: obj,
 				EndObject:   &Object{GridPosition: nextPos, Type: (obj.Type + 1) % 3},

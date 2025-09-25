@@ -32,17 +32,7 @@ func (s *Start) Process(position int, history [][]*Object, tick int, orientation
 		}
 
 		// Emit to next position based on orientation
-		nextPos := position + 1 // default east
-		switch orientation {
-		case OrientationNorth:
-			nextPos = position - 7
-		case OrientationEast:
-			nextPos = position + 1
-		case OrientationSouth:
-			nextPos = position + 7
-		case OrientationWest:
-			nextPos = position - 1
-		}
+		nextPos := GetAdjacentPosition(position, orientation)
 
 		// fmt.Printf("processed start. tick: %d, nextPos: %d, position: %d\n", tick, nextPos, position)
 		return []*Change{{
