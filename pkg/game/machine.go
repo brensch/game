@@ -11,7 +11,7 @@ type MachineState struct {
 	Orientation  Orientation
 	BeingDragged bool
 	IsPlaced     bool
-	RoundAdded   int
+	RunAdded     int
 	Selected     bool
 	OriginalPos  int
 }

@@ -183,12 +183,12 @@ func NewGame() *Game {
 		endPos = endRow*gridCols + endCol
 	}
 
-	state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RoundAdded: 0, OriginalPos: startPos}
-	state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0, OriginalPos: endPos}
+	state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: startPos}
+	state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
 
 	state.availableMachines = []*MachineState{
-		{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RoundAdded: 0},
-		{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RoundAdded: 0},
+		{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+		{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
 	}
 
 	return g
@@ -372,11 +372,11 @@ func (g *Game) Update() error {
 				endCol = 1 + rand.Intn(displayCols)
 				endPos = endRow*gridCols + endCol
 			}
-			g.state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RoundAdded: 0, OriginalPos: startPos}
-			g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RoundAdded: 0, OriginalPos: endPos}
+			g.state.machines[startPos] = &MachineState{Machine: &Start{}, Orientation: Orientation(rand.Intn(4)), BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: startPos}
+			g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
 			g.state.availableMachines = []*MachineState{
-				{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RoundAdded: 0},
-				{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RoundAdded: 0},
+				{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+				{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
 			}
 		}
 	}
@@ -472,14 +472,14 @@ func (g *Game) handleDragAndDrop() {
 		if dx*dx+dy*dy > 1000 { // threshold
 			selected := g.getSelectedMachine()
 			if selected != nil {
-				if selected.IsPlaced && selected.Machine.GetType() != MachineStart && selected.Machine.GetType() != MachineEnd {
+				if selected.IsPlaced && selected.Machine.GetType() != MachineStart && selected.Machine.GetType() != MachineEnd && selected.RunAdded == g.state.run {
 					selected.BeingDragged = true
 					pos := g.getPos(selected)
 					selected.OriginalPos = pos
 				} else if !selected.IsPlaced {
 					// from available
 					selected.BeingDragged = true
-					selected.RoundAdded = g.state.round
+					selected.RunAdded = g.state.run
 				}
 			}
 		}
@@ -516,7 +516,7 @@ func (g *Game) handleDragAndDrop() {
 						Orientation:  dragging.Orientation,
 						BeingDragged: false,
 						IsPlaced:     true,
-						RoundAdded:   g.state.round,
+						RunAdded:     g.state.run,
 					}
 					position := (gridY+1)*gridCols + (gridX + 1)
 					g.state.machines[position] = newMS
