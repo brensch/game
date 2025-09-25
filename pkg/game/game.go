@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"image/color"
+	"math"
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -121,6 +122,8 @@ type Game struct {
 	topPanelHeight, foremanHeight, availableHeight, bottomHeight int
 	topPanelY, foremanY, gridStartY, availableY, bottomY         int
 	screenWidth, gridStartX                                      int
+
+	vignetteImage *ebiten.Image
 }
 
 func (g *Game) getSelectedMachine() *MachineState {
@@ -569,6 +572,71 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		cx, cy := ebiten.CursorPosition()
 		vector.DrawFilledRect(screen, float32(cx-cellSize/2), float32(cy-cellSize/2), cellSize, cellSize, dragging.Machine.GetColor(), false)
 	}
+
+	// Apply CRT effects
+	g.drawScanlines(screen)
+	// Now, draw the vignette overlay on top of everything.
+	if g.vignetteImage != nil {
+		op := &ebiten.DrawImageOptions{}
+		screen.DrawImage(g.vignetteImage, op)
+	}
+}
+
+func (g *Game) drawScanlines(screen *ebiten.Image) {
+	bounds := screen.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	for y := 0; y < h; y += 2 {
+		vector.DrawFilledRect(screen, 0, float32(y), float32(w), 1, color.RGBA{R: 0, G: 0, B: 0, A: 30}, false)
+	}
+}
+
+// createVignetteImage generates a new image containing a smooth vignette effect.
+// w, h: The dimensions of your screen.
+// strength: How dark the vignette is (e.g., 0.5 for a moderate effect).
+// falloff: How sharply the vignette fades (e.g., 1.5 for a tighter fade).
+func createVignetteImage(w, h int, strength, falloff float64) *ebiten.Image {
+	// Create a new blank image to draw our vignette on.
+	vignette := ebiten.NewImage(w, h)
+
+	bounds := vignette.Bounds()
+	centerX := float64(bounds.Dx()) / 2.0
+	centerY := float64(bounds.Dy()) / 2.0
+
+	// The max distance is from the center to a corner.
+	maxDist := math.Hypot(centerX, centerY)
+
+	// We'll modify the raw pixel data directly for performance.
+	pixels := make([]byte, 4*w*h)
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			// Calculate the distance of the current pixel from the center.
+			dist := math.Hypot(float64(x)-centerX, float64(y)-centerY)
+
+			// Normalize the distance to a 0.0-1.0 range.
+			ratio := dist / maxDist
+
+			// Use Pow to create a smoother, more natural falloff.
+			// The falloff parameter controls the curve of the gradient.
+			ratio = math.Pow(ratio, falloff)
+
+			// Calculate the alpha based on the ratio and desired strength.
+			// Clamp the alpha value to a max of 255.
+			alpha := math.Min(ratio*255*strength, 255)
+
+			// The vignette color is black (0, 0, 0). We only modify the alpha.
+			// The pixel array is a flat slice: [R, G, B, A, R, G, B, A, ...]
+			idx := (y*w + x) * 4
+			pixels[idx+0] = 0           // R
+			pixels[idx+1] = 0           // G
+			pixels[idx+2] = 0           // B
+			pixels[idx+3] = byte(alpha) // A
+		}
+	}
+
+	// Apply the calculated pixel data to our image.
+	vignette.WritePixels(pixels)
+
+	return vignette
 }
 
 func (g *Game) drawUI(screen *ebiten.Image) {
@@ -801,6 +869,11 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	g.width = outsideWidth
 	g.height = outsideHeight
 	g.calculateLayout()
+
+	if g.vignetteImage == nil || g.vignetteImage.Bounds().Dx() != outsideWidth || g.vignetteImage.Bounds().Dy() != outsideHeight {
+		// Create the vignette with 50% strength and a falloff of 1.5
+		g.vignetteImage = createVignetteImage(outsideWidth, outsideHeight, 0.5, 1.5)
+	}
 
 	return outsideWidth, outsideHeight
 }
