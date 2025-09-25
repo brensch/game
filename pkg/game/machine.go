@@ -6,10 +6,12 @@ import (
 
 // EffectType represents dif// MachineState holds the state of a machine.
 type MachineState struct {
-	Machine    MachineInterface
-	Effects    []EffectInterface
-	IsPlaced   bool
-	RoundAdded int
+	Machine      MachineInterface
+	Effects      []EffectInterface
+	Orientation  Orientation
+	BeingDragged bool
+	IsPlaced     bool
+	RoundAdded   int
 }
 
 // EffectType represents different effects machines can have.
@@ -71,7 +73,7 @@ type EffectEmission struct {
 type MachineInterface interface {
 	GetType() MachineType
 	GetColor() color.RGBA
-	Process(position int, objects []*Object, round int) *Change
+	Process(position int, objects []*Object, round int, orientation Orientation) *Change
 	EmitEffects(game *Game, state *MachineState) []EffectEmission
 }
 

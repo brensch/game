@@ -18,13 +18,24 @@ func (c *Conveyor) GetColor() color.RGBA {
 }
 
 // Process handles object interaction for conveyor.
-func (c *Conveyor) Process(position int, objects []*Object, round int) *Change {
+func (c *Conveyor) Process(position int, objects []*Object, round int, orientation Orientation) *Change {
 	for _, obj := range objects {
 		if obj.GridPosition == position {
+			nextPos := position + 1 // default east
+			switch orientation {
+			case OrientationNorth:
+				nextPos = position - 7
+			case OrientationEast:
+				nextPos = position + 1
+			case OrientationSouth:
+				nextPos = position + 7
+			case OrientationWest:
+				nextPos = position - 1
+			}
 			return &Change{
 				Type:         ChangeTypeMove,
 				FromPosition: position,
-				ToPosition:   position + 1, // move right
+				ToPosition:   nextPos,
 			}
 		}
 	}

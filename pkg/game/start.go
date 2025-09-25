@@ -18,7 +18,7 @@ func (s *Start) GetColor() color.RGBA {
 }
 
 // Process handles object interaction for start.
-func (s *Start) Process(position int, objects []*Object, round int) *Change {
+func (s *Start) Process(position int, objects []*Object, round int, orientation Orientation) *Change {
 	if round%60 == 0 {
 		// Check if object already at position
 		for _, obj := range objects {
@@ -26,10 +26,21 @@ func (s *Start) Process(position int, objects []*Object, round int) *Change {
 				return nil
 			}
 		}
-		// Emit to next position
+		// Emit to next position based on orientation
+		nextPos := position + 1 // default east
+		switch orientation {
+		case OrientationNorth:
+			nextPos = position - gridCols
+		case OrientationEast:
+			nextPos = position + 1
+		case OrientationSouth:
+			nextPos = position + gridCols
+		case OrientationWest:
+			nextPos = position - 1
+		}
 		return &Change{
 			Type:         ChangeTypeCreate,
-			GridPosition: position + 1,
+			GridPosition: nextPos,
 			ObjectType:   ObjectRed,
 		}
 	}
