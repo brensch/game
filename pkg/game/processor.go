@@ -18,7 +18,7 @@ func (p *Processor) GetColor() color.RGBA {
 }
 
 // Process handles object interaction for processor.
-func (p *Processor) Process(position int, objects []*Object, round int, orientation Orientation) *Change {
+func (p *Processor) Process(position int, objects []*Object, round int, orientation Orientation) []*Change {
 	for _, obj := range objects {
 		if obj.GridPosition == position {
 			nextPos := position + 1 // default east
@@ -32,12 +32,10 @@ func (p *Processor) Process(position int, objects []*Object, round int, orientat
 			case OrientationWest:
 				nextPos = position - 1
 			}
-			return &Change{
-				Type:         ChangeTypeMove,
-				FromPosition: position,
-				ToPosition:   nextPos,
-				// Note: processing changes type, but for now, just move
-			}
+			return []*Change{{
+				StartObject: obj,
+				EndObject:   &Object{GridPosition: nextPos, Type: (obj.Type + 1) % 3},
+			}}
 		}
 	}
 	return nil

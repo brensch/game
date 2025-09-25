@@ -38,6 +38,7 @@ const (
 type Object struct {
 	GridPosition int
 	Type         ObjectType
+	Effects      []EffectInterface
 }
 
 // MachineType represents the different kinds of machines.
@@ -126,39 +127,24 @@ func NewGame() *Game {
 	return g
 }
 
-func createMachine(mt MachineType) MachineInterface {
-	switch mt {
-	case MachineConveyor:
-		return &Conveyor{}
-	case MachineProcessor:
-		return &Processor{}
-	case MachineStart:
-		return &Start{}
-	case MachineEnd:
-		return &End{}
-	}
-	return nil
-}
-
 func applyChanges(changes []*Change, objects *[]*Object) {
 	for _, change := range changes {
-		switch change.Type {
-		case ChangeTypeCreate:
-			*objects = append(*objects, &Object{GridPosition: change.GridPosition, Type: change.ObjectType})
-		case ChangeTypeMove:
+		if change.StartObject == nil {
+			// create
+			*objects = append(*objects, change.EndObject)
+		} else if change.EndObject == nil {
+			// delete
 			for i, obj := range *objects {
-				if obj.GridPosition == change.FromPosition {
-					(*objects)[i].GridPosition = change.ToPosition
-					break
-				}
-			}
-		case ChangeTypeDelete:
-			for i, obj := range *objects {
-				if obj.GridPosition == change.GridPosition {
+				if obj == change.StartObject {
 					*objects = append((*objects)[:i], (*objects)[i+1:]...)
 					break
 				}
 			}
+		} else {
+			// update
+			change.StartObject.GridPosition = change.EndObject.GridPosition
+			change.StartObject.Type = change.EndObject.Type
+			change.StartObject.Effects = change.EndObject.Effects
 		}
 	}
 }
@@ -297,9 +283,11 @@ func (g *Game) handleDragAndDrop() {
 func (g *Game) updateRun() {
 	var changes []*Change
 	for pos, ms := range g.state.machines {
-		if change := ms.Machine.Process(pos, g.state.objects, g.state.round, ms.Orientation); change != nil {
-			changes = append(changes, change)
+		if ms == nil || ms.Machine == nil {
+			continue
 		}
+		machineChanges := ms.Machine.Process(pos, g.state.objects, g.state.round, ms.Orientation)
+		changes = append(changes, machineChanges...)
 	}
 	applyChanges(changes, &g.state.objects)
 

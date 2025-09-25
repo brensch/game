@@ -73,24 +73,12 @@ type EffectEmission struct {
 type MachineInterface interface {
 	GetType() MachineType
 	GetColor() color.RGBA
-	Process(position int, objects []*Object, round int, orientation Orientation) *Change
+	Process(position int, objects []*Object, round int, orientation Orientation) []*Change
 	EmitEffects(game *Game, state *MachineState) []EffectEmission
 }
 
-// ChangeType represents the type of change.
-type ChangeType int
-
-const (
-	ChangeTypeCreate ChangeType = iota
-	ChangeTypeMove
-	ChangeTypeDelete
-)
-
-// Change represents a change to objects during processing.
+// Change represents a change to objects.
 type Change struct {
-	Type         ChangeType
-	GridPosition int
-	ObjectType   ObjectType
-	FromPosition int
-	ToPosition   int
+	StartObject *Object
+	EndObject   *Object
 }
