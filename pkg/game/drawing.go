@@ -93,19 +93,19 @@ func (g *Game) drawRotateArrow(screen *ebiten.Image, x, y, width, height int, le
 	lineLength := float32(width) * 0.25
 	centerX := float32(x) + float32(width)/2
 	centerY := float32(y) + float32(height)/2
-	
+
 	if left {
 		// Counterclockwise: L shape centered, arrow pointing right
 		vertTop := centerY - lineLength/2
 		vertBottom := centerY + lineLength/2
-		
+
 		// Vertical line
 		vector.StrokeLine(screen, centerX, vertTop, centerX, vertBottom, 3, arrowColor, false)
-		
+
 		// Horizontal line from bottom to right
 		horizRight := centerX + lineLength
 		vector.StrokeLine(screen, centerX, vertBottom, horizRight, vertBottom, 3, arrowColor, false)
-		
+
 		// Arrowhead at the right end: two lines diagonally backwards from tip
 		arrowTipX := horizRight
 		vector.StrokeLine(screen, arrowTipX, vertBottom, arrowTipX-margin, vertBottom-margin, 3, arrowColor, false)
@@ -114,14 +114,14 @@ func (g *Game) drawRotateArrow(screen *ebiten.Image, x, y, width, height int, le
 		// Clockwise: L shape centered, arrow pointing left
 		vertTop := centerY - lineLength/2
 		vertBottom := centerY + lineLength/2
-		
+
 		// Vertical line
 		vector.StrokeLine(screen, centerX, vertTop, centerX, vertBottom, 3, arrowColor, false)
-		
+
 		// Horizontal line from bottom to left
 		horizLeft := centerX - lineLength
 		vector.StrokeLine(screen, centerX, vertBottom, horizLeft, vertBottom, 3, arrowColor, false)
-		
+
 		// Arrowhead at the left end: two lines diagonally backwards from tip
 		arrowTipX := horizLeft
 		vector.StrokeLine(screen, arrowTipX, vertBottom, arrowTipX+margin, vertBottom-margin, 3, arrowColor, false)

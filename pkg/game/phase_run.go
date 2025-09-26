@@ -1,7 +1,6 @@
 package game
 
 import (
-	"fmt"
 	"image/color"
 	"math/rand"
 )
@@ -26,13 +25,11 @@ func (g *Game) handleRunPhase() {
 	g.state.animations = newAnims
 
 	// Now check if need to start new tick or switch
-	fmt.Println("animations:", len(g.state.animations), "tick:", g.state.animationTick, "total ticks:", len(g.state.allChanges))
 	if len(g.state.animations) == 0 {
 		changes := g.state.allChanges
 		if g.state.animationTick >= len(changes) && len(changes) > 0 {
 			// All ticks done
 			g.state.phase = PhaseBuild
-			fmt.Println("---------- Run complete")
 			g.state.animationTick = 0
 			g.state.animationSpeed = 1.0
 			g.state.allChanges = nil

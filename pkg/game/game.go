@@ -146,7 +146,7 @@ func (b *Button) Render(screen *ebiten.Image, phase GamePhase) {
 		btnColor = color.RGBA{R: 100, G: 100, B: 100, A: 255}
 	}
 	vector.DrawFilledRect(screen, float32(b.X), float32(b.Y), float32(b.Width), float32(b.Height), btnColor, false)
-	
+
 	if b.CustomRender != nil {
 		b.CustomRender(screen, b, phase)
 	} else {
