@@ -362,16 +362,15 @@ func (g *Game) calculateLayout() {
 	g.gridMargin = int(float64(g.cellSize) * marginRatio)
 
 	gridHeight := displayRows*g.cellSize + (displayRows-1)*g.gridMargin
-	totalFixedHeight := g.topPanelHeight + g.foremanHeight + gridHeight + g.availableHeight + g.bottomHeight
-	gap := (g.height - totalFixedHeight) / 5
+	totalFixedHeight := g.topPanelHeight + gridHeight + g.availableHeight + g.bottomHeight
+	gap := (g.height - totalFixedHeight) / 4
 	if gap < minGap {
 		gap = minGap
 	}
-	g.topPanelY = gap
-	g.foremanY = g.topPanelY + g.topPanelHeight + gap
-	g.gridStartY = g.foremanY + g.foremanHeight + gap
+	g.topPanelY = 0
+	g.gridStartY = g.topPanelY + g.topPanelHeight + gap
 	g.availableY = g.gridStartY + gridHeight + gap
-	g.bottomY = g.availableY + g.availableHeight + gap
+	g.bottomY = g.height - g.bottomHeight
 	g.screenWidth = g.width
 	g.gridStartX = (g.screenWidth - (displayCols*g.cellSize + (displayCols-1)*g.gridMargin)) / 2
 }

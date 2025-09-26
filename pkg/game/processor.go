@@ -23,11 +23,15 @@ func (p *Processor) Process(position int, history [][]*Object, tick int, orienta
 	for _, obj := range current {
 		if obj.GridPosition == position {
 			nextPos := GetAdjacentPosition(position, orientation)
+			multAdd := 0
+			if obj.Type == ObjectGreen {
+				multAdd = 1
+			}
 			return []*Change{{
 				StartObject: obj,
 				EndObject:   &Object{GridPosition: nextPos, Type: (obj.Type + 1) % 3},
 				Score:       0,
-				MultAdd:     0,
+				MultAdd:     multAdd,
 				MultMult:    1,
 			}}
 		}
@@ -43,7 +47,7 @@ func (p *Processor) EmitEffects(game *Game, state *MachineState) []EffectEmissio
 
 // GetDescription returns the machine description.
 func (p *Processor) GetDescription() string {
-	return "Transforms objects to the next color and moves them forward."
+	return "Transforms objects to the next color and moves them forward. Gives +1 multiplier when processing green objects."
 }
 
 // GetCost returns the cost to place this machine.
