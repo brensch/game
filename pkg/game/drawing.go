@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"image/color"
+	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -213,7 +214,7 @@ func (g *Game) drawTooltips(screen *ebiten.Image) {
 				if row >= 1 && row <= displayRows && col >= 1 && col <= displayCols {
 					x := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin) + g.cellSize/2
 					y := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
-					g.drawTooltip(screen, selected.Machine.GetDescription(), x, y-10)
+					g.drawTooltip(screen, selected.Machine.GetName(), selected.Machine.GetDescription(), selected.Machine.GetCost(), x, y-10)
 					return
 				}
 			}
@@ -223,7 +224,7 @@ func (g *Game) drawTooltips(screen *ebiten.Image) {
 			if ms == selected {
 				x := g.gridStartX + i*(g.cellSize+g.gridMargin) + g.cellSize/2
 				y := g.availableY + g.cellSize
-				g.drawTooltip(screen, selected.Machine.GetDescription(), x, y+10)
+				g.drawTooltip(screen, selected.Machine.GetName(), selected.Machine.GetDescription(), selected.Machine.GetCost(), x, y+10)
 				return
 			}
 		}
@@ -235,7 +236,7 @@ func (g *Game) drawTooltips(screen *ebiten.Image) {
 		row := (cy - g.gridStartY) / (g.cellSize + g.gridMargin)
 		x := g.gridStartX + col*(g.cellSize+g.gridMargin) + g.cellSize/2
 		y := g.gridStartY + row*(g.cellSize+g.gridMargin)
-		g.drawTooltip(screen, ms.Machine.GetDescription(), x, y-10)
+		g.drawTooltip(screen, ms.Machine.GetName(), ms.Machine.GetDescription(), ms.Machine.GetCost(), x, y-10)
 		return
 	}
 
@@ -244,18 +245,26 @@ func (g *Game) drawTooltips(screen *ebiten.Image) {
 		x := g.gridStartX + i*(g.cellSize+g.gridMargin)
 		y := g.availableY
 		if cx >= x && cx <= x+g.cellSize && cy >= y && cy <= y+g.cellSize {
-			g.drawTooltip(screen, ms.Machine.GetDescription(), x+g.cellSize/2, y+g.cellSize+10)
+			g.drawTooltip(screen, ms.Machine.GetName(), ms.Machine.GetDescription(), ms.Machine.GetCost(), x+g.cellSize/2, y+g.cellSize+10)
 			return
 		}
 	}
 }
 
-func (g *Game) drawTooltip(screen *ebiten.Image, text string, x, y int) {
-	// Measure text width (approximate)
-	textWidth := len(text) * 6 // rough estimate
-	boxWidth := textWidth + 20
-	boxHeight := 30
-
+func (g *Game) drawTooltip(screen *ebiten.Image, name, text string, cost int, x, y int) {
+	// Create tooltip text with name, description and cost
+	costText := fmt.Sprintf("Cost: $%d", cost)
+	
+	// Wrap description text to fit within 300px width
+	maxWidthPx := 300
+	charWidth := 6
+	maxCharsPerLine := maxWidthPx / charWidth
+	wrappedLines := g.wrapText(text, maxCharsPerLine)
+	
+	// Calculate box dimensions
+	boxWidth := maxWidthPx + 20 // Fixed width
+	boxHeight := 15 + len(wrappedLines)*15 + 15 + 20 // Name + lines + cost + padding
+	
 	// Position box above the point
 	boxX := x - boxWidth/2
 	boxY := y - boxHeight - 5
@@ -276,6 +285,38 @@ func (g *Game) drawTooltip(screen *ebiten.Image, text string, x, y int) {
 	// Draw border
 	vector.StrokeRect(screen, float32(boxX), float32(boxY), float32(boxWidth), float32(boxHeight), 2, color.RGBA{R: 255, G: 255, B: 255, A: 255}, false)
 
-	// Draw text
-	ebitenutil.DebugPrintAt(screen, text, boxX+10, boxY+8)
+	// Draw name in bold or larger (just print it)
+	ebitenutil.DebugPrintAt(screen, name, boxX+10, boxY+8)
+	lineY := boxY + 23
+	// Draw wrapped description lines
+	for _, line := range wrappedLines {
+		ebitenutil.DebugPrintAt(screen, line, boxX+10, lineY)
+		lineY += 15
+	}
+	// Draw cost on next line
+	ebitenutil.DebugPrintAt(screen, costText, boxX+10, lineY)
+}
+
+func (g *Game) wrapText(text string, maxChars int) []string {
+	words := strings.Fields(text)
+	var lines []string
+	var currentLine string
+
+	for _, word := range words {
+		if len(currentLine)+len(word)+1 <= maxChars {
+			if currentLine != "" {
+				currentLine += " "
+			}
+			currentLine += word
+		} else {
+			if currentLine != "" {
+				lines = append(lines, currentLine)
+			}
+			currentLine = word
+		}
+	}
+	if currentLine != "" {
+		lines = append(lines, currentLine)
+	}
+	return lines
 }

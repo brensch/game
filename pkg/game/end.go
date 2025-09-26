@@ -44,3 +44,13 @@ func (e *End) EmitEffects(game *Game, state *MachineState) []EffectEmission {
 func (e *End) GetDescription() string {
 	return "Collects objects that reach it, scoring points based on their color."
 }
+
+// GetCost returns the cost to place this machine.
+func (e *End) GetCost() int {
+	return 0
+}
+
+// GetName returns the machine name.
+func (e *End) GetName() string {
+	return "End"
+}

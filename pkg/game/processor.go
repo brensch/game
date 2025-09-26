@@ -45,3 +45,13 @@ func (p *Processor) EmitEffects(game *Game, state *MachineState) []EffectEmissio
 func (p *Processor) GetDescription() string {
 	return "Transforms objects to the next color and moves them forward."
 }
+
+// GetCost returns the cost to place this machine.
+func (p *Processor) GetCost() int {
+	return 3
+}
+
+// GetName returns the machine name.
+func (p *Processor) GetName() string {
+	return "Processor"
+}

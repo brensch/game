@@ -90,18 +90,25 @@ func (g *Game) handleDragAndDrop() {
 			if gridX != -1 {
 				var placedMS *MachineState
 				if !dragging.IsPlaced {
-					g.state.money -= 1
-					// Create a new instance for placed machine
-					newMS := &MachineState{
-						Machine:      dragging.Machine,
-						Orientation:  dragging.Orientation,
-						BeingDragged: false,
-						IsPlaced:     true,
-						RunAdded:     g.state.run,
+					cost := dragging.Machine.GetCost()
+					if g.state.money >= cost {
+						g.state.money -= cost
+						// Create a new instance for placed machine
+						newMS := &MachineState{
+							Machine:      dragging.Machine,
+							Orientation:  dragging.Orientation,
+							BeingDragged: false,
+							IsPlaced:     true,
+							RunAdded:     g.state.run,
+						}
+						position := (gridY+1)*gridCols + (gridX + 1)
+						g.state.machines[position] = newMS
+						placedMS = newMS
+					} else {
+						// Not enough money, don't place
+						dragging.BeingDragged = false
+						return
 					}
-					position := (gridY+1)*gridCols + (gridX + 1)
-					g.state.machines[position] = newMS
-					placedMS = newMS
 				} else {
 					// Moving existing placed machine
 					position := (gridY+1)*gridCols + (gridX + 1)
@@ -134,7 +141,7 @@ func (g *Game) handleDragAndDrop() {
 				if cx >= sellX-10 && cx <= sellX+sellWidth+10 && cy >= sellY-10 && cy <= sellY+sellHeight+10 {
 					if dragging.IsPlaced && dragging.Machine.GetType() != MachineMiner && dragging.Machine.GetType() != MachineEnd {
 						// Sell the machine
-						g.state.money += 1
+						g.state.money += dragging.Machine.GetCost()
 						// Remove from grid
 						for pos, ms := range g.state.machines {
 							if ms == dragging {

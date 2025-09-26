@@ -78,6 +78,8 @@ type MachineInterface interface {
 	Process(position int, history [][]*Object, tick int, orientation Orientation) []*Change
 	EmitEffects(game *Game, state *MachineState) []EffectEmission
 	GetDescription() string
+	GetCost() int
+	GetName() string
 }
 
 // Change represents a change to objects.
