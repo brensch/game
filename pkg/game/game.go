@@ -110,6 +110,7 @@ type GameState struct {
 	totalScore        int
 	targetScore       int
 	gameOver          bool
+	endRunDelay       int
 }
 
 // ButtonState represents the state of a button for a phase.
@@ -235,6 +236,7 @@ func NewGame(width, height int) *Game {
 		totalScore:     0,
 		targetScore:    10, // round * 10
 		gameOver:       false,
+		endRunDelay:    0,
 	}
 
 	g := &Game{state: state}
@@ -417,6 +419,7 @@ func (g *Game) Update() error {
 			g.state.animations = []*Animation{}
 			g.state.animationTick = 0
 			g.state.animationSpeed = 1.0
+			g.state.endRunDelay = 0
 			go func() {
 				changes, _ := SimulateRun(g.state.machines)
 				g.state.allChanges = changes
@@ -442,6 +445,7 @@ func (g *Game) Update() error {
 			totalScore:     0,
 			targetScore:    10,
 			gameOver:       false,
+			endRunDelay:    0,
 		}
 		g.initButtons()
 		// Place random End machine
@@ -489,6 +493,7 @@ func (g *Game) Update() error {
 			totalScore:     0,
 			targetScore:    10,
 			gameOver:       false,
+			endRunDelay:    0,
 		}
 		g.initButtons()
 		// Place random End machine
