@@ -222,7 +222,7 @@ func (g *Game) getDraggingMachine() *MachineState {
 func NewGame(width, height int) *Game {
 	state := &GameState{
 		phase:          PhaseBuild,
-		money:          7,
+		money:          10,
 		run:            1,
 		maxRuns:        6,
 		machines:       make([]*MachineState, gridCols*gridRows),
