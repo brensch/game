@@ -15,6 +15,7 @@ const (
 	availableHeight = 60
 	bottomHeight    = 60
 	minGap          = 10
+	buttonWidth     = 100
 
 	gridCols    = 9
 	gridRows    = 9
@@ -252,7 +253,8 @@ func (g *Game) Update() error {
 	if input.JustPressed {
 		cx, cy := input.X, input.Y
 		// Simple button detection for "Start Run"
-		if cx > 250 && cx < g.screenWidth-30 && cy > g.bottomY+10 && cy < g.bottomY+10+g.bottomHeight-20 {
+		runButtonX := g.screenWidth - 10 - buttonWidth
+		if cx > runButtonX && cx < g.screenWidth-10 && cy > g.bottomY+10 && cy < g.bottomY+10+g.bottomHeight-20 {
 			if g.state.phase == PhaseBuild {
 				g.state.phase = PhaseRun
 				g.state.animations = []*Animation{}

@@ -35,22 +35,25 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 	// Bottom Panel
 	vector.DrawFilledRect(screen, 10, float32(g.bottomY), float32(g.screenWidth-20), float32(g.bottomHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
 
-	// Sell Area
-	vector.DrawFilledRect(screen, 10, float32(g.bottomY+10), 120, float32(g.bottomHeight-20), color.RGBA{R: 255, G: 100, B: 100, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, "Sell", 30, g.bottomY+20)
+	// Sell Button (100px)
+	vector.DrawFilledRect(screen, 10, float32(g.bottomY+10), buttonWidth, float32(g.bottomHeight-20), color.RGBA{R: 255, G: 100, B: 100, A: 255}, false)
+	ebitenutil.DebugPrintAt(screen, "Sell", 20, g.bottomY+20)
 
-	// Current Round Score
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round Score: %d", g.state.baseScore), 140, g.bottomY+20)
+	// Current Round Score (centered in the middle)
+	scoreText := fmt.Sprintf("Round Score: %d", g.state.baseScore)
+	scoreX := (g.screenWidth - len(scoreText)*6) / 2  // Approximate centering, assuming ~6px per char
+	ebitenutil.DebugPrintAt(screen, scoreText, scoreX, g.bottomY+20)
 
-	// Start/Stop Run Button
+	// Start/Stop Run Button (100px on the right)
+	runButtonX := float32(g.screenWidth - 10 - buttonWidth)
 	runButtonColor := color.RGBA{R: 100, G: 200, B: 100, A: 255}
 	runButtonText := "Start Run"
 	if g.state.running {
 		runButtonColor = color.RGBA{R: 200, G: 200, B: 100, A: 255}
 		runButtonText = "Running"
 	}
-	vector.DrawFilledRect(screen, 250, float32(g.bottomY+10), float32(g.screenWidth-30-250), float32(g.bottomHeight-20), runButtonColor, false)
-	ebitenutil.DebugPrintAt(screen, runButtonText, 260, g.bottomY+20)
+	vector.DrawFilledRect(screen, runButtonX, float32(g.bottomY+10), buttonWidth, float32(g.bottomHeight-20), runButtonColor, false)
+	ebitenutil.DebugPrintAt(screen, runButtonText, int(runButtonX)+5, g.bottomY+20)
 }
 
 func (g *Game) drawFactoryFloor(screen *ebiten.Image) {
