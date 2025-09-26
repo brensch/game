@@ -1,11 +1,13 @@
 package game
 
 import (
+	"fmt"
 	"image/color"
 	"math"
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
@@ -95,12 +97,53 @@ type GameState struct {
 	availableMachines []*MachineState
 	objects           []*Object
 	round             int
-	inputPressed      bool
-	pressX, pressY    int
-	running           bool
 	animations        []*Animation
 	animationTick     int
 	animationSpeed    float64
+	buttons           map[string]*Button
+	inputPressed      bool
+	pressX, pressY    int
+}
+
+// Button represents a clickable UI button.
+type Button struct {
+	X, Y, Width, Height int
+	Text                string
+	Disabled            bool
+	Color               color.RGBA
+}
+
+// Init initializes the button with dimensions.
+func (b *Button) Init(x, y, width, height int, text string) {
+	b.X = x
+	b.Y = y
+	b.Width = width
+	b.Height = height
+	b.Text = text
+	b.Disabled = false
+	b.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Default green
+}
+
+// Render draws the button on the screen.
+func (b *Button) Render(screen *ebiten.Image) {
+	btnColor := b.Color
+	if b.Disabled {
+		btnColor = color.RGBA{R: 100, G: 100, B: 100, A: 255}
+	}
+	vector.DrawFilledRect(screen, float32(b.X), float32(b.Y), float32(b.Width), float32(b.Height), btnColor, false)
+	ebitenutil.DebugPrintAt(screen, b.Text, b.X+5, b.Y+b.Height/2+5)
+}
+
+// IsClicked checks if the button was clicked using the input state.
+func (b *Button) IsClicked(input InputState) bool {
+	if b.Disabled {
+		return false
+	}
+	if input.JustPressed {
+		cx, cy := input.X, input.Y
+		return cx >= b.X && cx <= b.X+b.Width && cy >= b.Y && cy <= b.Y+b.Height
+	}
+	return false
 }
 
 // Game implements ebiten.Game.
@@ -113,6 +156,7 @@ type Game struct {
 	cellSize, gridMargin                                         int
 
 	vignetteImage *ebiten.Image
+	lastInput     InputState
 }
 
 func (g *Game) getSelectedMachine() *MachineState {
@@ -155,12 +199,19 @@ func NewGame(width, height int) *Game {
 		animations:     []*Animation{},
 		animationTick:  0,
 		animationSpeed: 1.0,
+		buttons:        make(map[string]*Button),
+		inputPressed:   false,
+		pressX:         0,
+		pressY:         0,
 	}
 
 	g := &Game{state: state}
 	g.width = width
 	g.height = height
 	g.calculateLayout()
+
+	// Initialize buttons
+	g.initButtons()
 
 	// Place random End machine
 	endRow := 1 + rand.Intn(displayRows)
@@ -176,6 +227,42 @@ func NewGame(width, height int) *Game {
 	}
 
 	return g
+}
+
+func (g *Game) initButtons() {
+	// Restart button
+	restartBtn := &Button{}
+	restartBtn.Init(g.screenWidth-100, g.topPanelY+10, 80, g.topPanelHeight-20, "Restart")
+	restartBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
+	g.state.buttons["restart"] = restartBtn
+
+	// Sell button
+	sellBtn := &Button{}
+	sellBtn.Init(10, g.bottomY+10, buttonWidth, g.bottomHeight-20, "Sell")
+	sellBtn.Color = color.RGBA{R: 255, G: 100, B: 100, A: 255} // Red
+	g.state.buttons["sell"] = sellBtn
+
+	// Start Run button
+	runBtn := &Button{}
+	runBtn.Init(g.screenWidth-10-buttonWidth, g.bottomY+10, buttonWidth, g.bottomHeight-20, "Start Run")
+	runBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
+	g.state.buttons["run"] = runBtn
+
+	// Rotate counterclockwise button
+	rotateLeftBtn := &Button{}
+	counterclockwiseX := g.screenWidth - 2*g.cellSize - g.gridMargin
+	counterclockwiseY := g.availableY
+	rotateLeftBtn.Init(counterclockwiseX, counterclockwiseY, g.cellSize, g.cellSize, "<-")
+	rotateLeftBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
+	g.state.buttons["rotate_left"] = rotateLeftBtn
+
+	// Rotate clockwise button
+	rotateRightBtn := &Button{}
+	clockwiseX := g.screenWidth - g.cellSize
+	clockwiseY := g.availableY
+	rotateRightBtn.Init(clockwiseX, clockwiseY, g.cellSize, g.cellSize, "->")
+	rotateRightBtn.Color = color.RGBA{R: 100, G: 100, B: 200, A: 255} // Blue
+	g.state.buttons["rotate_right"] = rotateRightBtn
 }
 
 func (g *Game) calculateLayout() {
@@ -241,6 +328,8 @@ func (g *Game) getPos(ms *MachineState) int {
 
 // Update proceeds the game state.
 func (g *Game) Update() error {
+	g.GetInput()
+
 	switch g.state.phase {
 	case PhaseBuild:
 		g.handleDragAndDrop()
@@ -248,50 +337,69 @@ func (g *Game) Update() error {
 		g.handleRunPhase()
 	}
 
-	// Check for "Start Run" button click
-	input := GetUnifiedInput()
-	if input.JustPressed {
-		cx, cy := input.X, input.Y
-		// Simple button detection for "Start Run"
-		runButtonX := g.screenWidth - 10 - buttonWidth
-		if cx > runButtonX && cx < g.screenWidth-10 && cy > g.bottomY+10 && cy < g.bottomY+10+g.bottomHeight-20 {
-			if g.state.phase == PhaseBuild {
-				g.state.phase = PhaseRun
-				g.state.animations = []*Animation{}
-				g.state.animationTick = 0
-				g.state.animationSpeed = 1.0
-			}
-		}
-		// Check for "Restart" button click
-		if cx >= g.screenWidth-100 && cx <= g.screenWidth-20 && cy >= g.topPanelY+10 && cy <= g.topPanelY+10+g.topPanelHeight-20 {
-			// Reset game state
-			g.state = &GameState{
-				phase:          PhaseBuild,
-				money:          7,
-				run:            1,
-				maxRuns:        6,
-				machines:       make([]*MachineState, gridCols*gridRows),
-				round:          1,
-				animations:     []*Animation{},
-				animationTick:  0,
-				animationSpeed: 1.0,
-			}
-			// Place random End machine
-			endRow := 1 + rand.Intn(displayRows)
-			endCol := 1 + rand.Intn(displayCols)
-			endPos := endRow*gridCols + endCol
-			g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
-			g.state.availableMachines = []*MachineState{
-				{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-				{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-				{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-			}
+	// Check button clicks
+	if g.state.buttons["run"].IsClicked(g.lastInput) {
+		if g.state.phase == PhaseBuild {
+			g.state.phase = PhaseRun
+			g.state.animations = []*Animation{}
+			g.state.animationTick = 0
+			g.state.animationSpeed = 1.0
 		}
 	}
-	return nil
-}
+	if g.state.buttons["restart"].IsClicked(g.lastInput) {
+		// Reset game state
+		g.state = &GameState{
+			phase:          PhaseBuild,
+			money:          7,
+			run:            1,
+			maxRuns:        6,
+			machines:       make([]*MachineState, gridCols*gridRows),
+			round:          1,
+			animations:     []*Animation{},
+			animationTick:  0,
+			animationSpeed: 1.0,
+			buttons:        make(map[string]*Button),
+			inputPressed:   false,
+			pressX:         0,
+			pressY:         0,
+		}
+		g.initButtons()
+		// Place random End machine
+		endRow := 1 + rand.Intn(displayRows)
+		endCol := 1 + rand.Intn(displayCols)
+		endPos := endRow*gridCols + endCol
+		g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
+		g.state.availableMachines = []*MachineState{
+			{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+			{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+			{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+		}
+	}
+	if g.state.buttons["sell"].IsClicked(g.lastInput) {
+		selected := g.getSelectedMachine()
+		if selected != nil && selected.IsPlaced && selected.Machine.GetType() != MachineEnd {
+			// Remove from grid
+			for pos, ms := range g.state.machines {
+				if ms == selected {
+					g.state.machines[pos] = nil
+					break
+				}
+			}
+			// Deselect
+			selected.Selected = false
+		}
+	}
 
-// Draw draws the game screen.
+	// Update button states
+	if g.state.phase == PhaseRun {
+		g.state.buttons["run"].Text = "Running"
+		g.state.buttons["run"].Color = color.RGBA{R: 200, G: 200, B: 100, A: 255} // Yellow
+	} else {
+		g.state.buttons["run"].Text = "Start Run"
+		g.state.buttons["run"].Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
+	}
+	return nil
+}// Draw draws the game screen.
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{R: 40, G: 40, B: 40, A: 255})
 	g.drawUI(screen)
@@ -306,6 +414,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		cx, cy := GetCursorPosition()
 		vector.DrawFilledRect(screen, float32(cx-g.cellSize/2), float32(cy-g.cellSize/2), float32(g.cellSize), float32(g.cellSize), dragging.Machine.GetColor(), false)
 	}
+
+	// Debug input state
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Input: P:%v JP:%v JR:%v X:%d Y:%d", g.lastInput.Pressed, g.lastInput.JustPressed, g.lastInput.JustReleased, g.lastInput.X, g.lastInput.Y), 10, 10)
+	runButtonX := g.screenWidth - 10 - buttonWidth
+	runButtonY := g.bottomY + 10
+	runButtonWidth := buttonWidth
+	runButtonHeight := g.bottomHeight - 20
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("RunBtn: X:%d-%d Y:%d-%d", runButtonX-10, runButtonX+runButtonWidth+10, runButtonY-10, runButtonY+runButtonHeight+10), 10, 30)
 
 	// Apply CRT effects
 	g.drawScanlines(screen)

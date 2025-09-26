@@ -1,30 +1,22 @@
 package game
 
-import (
-	"fmt"
-)
-
 func (g *Game) handleDragAndDrop() {
-	input := GetUnifiedInput()
-	cx, cy := input.X, input.Y
+	cx, cy := g.lastInput.X, g.lastInput.Y
 
-	if input.JustPressed {
+	if g.lastInput.JustPressed {
 		g.state.inputPressed = true
-		g.state.pressX, g.state.pressY = cx, cy
+		g.state.pressX = cx
+		g.state.pressY = cy
 
 		// Check rotation buttons first
-		counterclockwiseX := g.screenWidth - 2*g.cellSize - g.gridMargin
-		counterclockwiseY := g.availableY
-		if cx >= counterclockwiseX-10 && cx <= counterclockwiseX+g.cellSize+10 && cy >= counterclockwiseY-10 && cy <= counterclockwiseY+g.cellSize+10 {
+		if g.state.buttons["rotate_left"].IsClicked(g.lastInput) {
 			selected := g.getSelectedMachine()
 			if selected != nil {
 				selected.Orientation = (selected.Orientation + 3) % 4
 			}
 			return
 		}
-		clockwiseX := g.screenWidth - g.cellSize
-		clockwiseY := g.availableY
-		if cx >= clockwiseX-10 && cx <= clockwiseX+g.cellSize+10 && cy >= clockwiseY-10 && cy <= clockwiseY+g.cellSize+10 {
+		if g.state.buttons["rotate_right"].IsClicked(g.lastInput) {
 			selected := g.getSelectedMachine()
 			if selected != nil {
 				selected.Orientation = (selected.Orientation + 1) % 4
@@ -62,7 +54,7 @@ func (g *Game) handleDragAndDrop() {
 
 	}
 
-	if g.state.inputPressed && input.Pressed {
+	if g.state.inputPressed && g.lastInput.Pressed {
 		dx := cx - g.state.pressX
 		dy := cy - g.state.pressY
 		if dx*dx+dy*dy > 1000 { // threshold
@@ -81,7 +73,8 @@ func (g *Game) handleDragAndDrop() {
 		}
 	}
 
-	if input.JustReleased {
+	if g.lastInput.JustReleased {
+		g.state.inputPressed = false
 		dragging := g.getDraggingMachine()
 		if dragging != nil {
 			// Place at cursor position
@@ -161,33 +154,6 @@ func (g *Game) handleDragAndDrop() {
 				}
 			}
 			dragging.BeingDragged = false
-		}
-
-		// Check run button
-		runButtonX := 250
-		runButtonY := g.bottomY + 10
-		runButtonWidth := g.screenWidth - 30 - 250
-		runButtonHeight := g.bottomHeight - 20
-		if cx >= runButtonX-10 && cx <= runButtonX+runButtonWidth+10 && cy >= runButtonY-10 && cy <= runButtonY+runButtonHeight+10 {
-			if !g.state.running {
-				g.state.running = true
-				changes, _ := SimulateRun(g.state.machines)
-				for i, tickChanges := range changes {
-					fmt.Printf("Tick %d: %d changes\n", i, len(tickChanges))
-					for _, ch := range tickChanges {
-						startStr := "nil"
-						if ch.StartObject != nil {
-							startStr = fmt.Sprintf("pos %d type %d", ch.StartObject.GridPosition, ch.StartObject.Type)
-						}
-						endStr := "nil"
-						if ch.EndObject != nil {
-							endStr = fmt.Sprintf("pos %d type %d", ch.EndObject.GridPosition, ch.EndObject.Type)
-						}
-						fmt.Printf("  Change: Start %s -> End %s\n", startStr, endStr)
-					}
-				}
-				g.state.running = false
-			}
 		}
 
 		g.state.inputPressed = false

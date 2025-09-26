@@ -23,8 +23,7 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Total Score: %d x %d = %d", g.state.baseScore, g.state.multiplier, g.state.baseScore*g.state.multiplier), 20, g.topPanelY+20)
 
 	// Restart button
-	vector.DrawFilledRect(screen, float32(g.screenWidth-100), float32(g.topPanelY+10), 80, float32(g.topPanelHeight-20), color.RGBA{R: 200, G: 100, B: 100, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, "Restart", g.screenWidth-90, g.topPanelY+30)
+	g.state.buttons["restart"].Render(screen)
 
 	// Foreman panel - Money and Run
 	vector.DrawFilledRect(screen, 10, float32(g.foremanY), float32(g.screenWidth-20), float32(g.foremanHeight), color.RGBA{R: 100, G: 100, B: 100, A: 255}, false)
@@ -35,25 +34,16 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 	// Bottom Panel
 	vector.DrawFilledRect(screen, 10, float32(g.bottomY), float32(g.screenWidth-20), float32(g.bottomHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
 
-	// Sell Button (100px)
-	vector.DrawFilledRect(screen, 10, float32(g.bottomY+10), buttonWidth, float32(g.bottomHeight-20), color.RGBA{R: 255, G: 100, B: 100, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, "Sell", 20, g.bottomY+20)
+	// Sell Button
+	g.state.buttons["sell"].Render(screen)
 
 	// Current Round Score (centered in the middle)
 	scoreText := fmt.Sprintf("Round Score: %d", g.state.baseScore)
 	scoreX := (g.screenWidth - len(scoreText)*6) / 2 // Approximate centering, assuming ~6px per char
 	ebitenutil.DebugPrintAt(screen, scoreText, scoreX, g.bottomY+20)
 
-	// Start/Stop Run Button (100px on the right)
-	runButtonX := float32(g.screenWidth - 10 - buttonWidth)
-	runButtonColor := color.RGBA{R: 100, G: 200, B: 100, A: 255}
-	runButtonText := "Start Run"
-	if g.state.running {
-		runButtonColor = color.RGBA{R: 200, G: 200, B: 100, A: 255}
-		runButtonText = "Running"
-	}
-	vector.DrawFilledRect(screen, runButtonX, float32(g.bottomY+10), buttonWidth, float32(g.bottomHeight-20), runButtonColor, false)
-	ebitenutil.DebugPrintAt(screen, runButtonText, int(runButtonX)+5, g.bottomY+20)
+	// Start/Stop Run Button
+	g.state.buttons["run"].Render(screen)
 }
 
 func (g *Game) drawFactoryFloor(screen *ebiten.Image) {
@@ -135,15 +125,8 @@ func (g *Game) drawMachines(screen *ebiten.Image) {
 	}
 
 	// Rotation buttons
-	counterclockwiseX := g.screenWidth - 2*g.cellSize - g.gridMargin
-	counterclockwiseY := g.availableY
-	vector.DrawFilledCircle(screen, float32(counterclockwiseX+g.cellSize/2), float32(counterclockwiseY+g.cellSize/2), float32(g.cellSize/2), color.RGBA{R: 200, G: 100, B: 100, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, "<-", counterclockwiseX+22, counterclockwiseY+26)
-
-	clockwiseX := g.screenWidth - g.cellSize
-	clockwiseY := g.availableY
-	vector.DrawFilledCircle(screen, float32(clockwiseX+g.cellSize/2), float32(clockwiseY+g.cellSize/2), float32(g.cellSize/2), color.RGBA{R: 100, G: 100, B: 200, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, "->", clockwiseX+22, clockwiseY+26)
+	g.state.buttons["rotate_left"].Render(screen)
+	g.state.buttons["rotate_right"].Render(screen)
 }
 
 func (g *Game) drawObjects(screen *ebiten.Image) {

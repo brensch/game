@@ -20,8 +20,8 @@ type InputState struct {
 	X, Y         int
 }
 
-// GetUnifiedInput returns a unified input state that works for both mouse and touch
-func GetUnifiedInput() InputState {
+// getUnifiedInput returns a unified input state that works for both mouse and touch
+func getUnifiedInput() InputState {
 	// Check mouse input first
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
@@ -119,4 +119,8 @@ func GetCursorPosition() (int, int) {
 
 	// Fall back to mouse
 	return ebiten.CursorPosition()
+}
+
+func (g *Game) GetInput() {
+	g.lastInput = getUnifiedInput()
 }
