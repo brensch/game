@@ -91,6 +91,30 @@ func (g *Game) handleRunPhase() {
 					g.state.round++
 					g.state.targetScore = g.state.round * g.state.round * 10
 					g.state.money += 10
+					// Reset machines: keep only End, clear others
+					var endMachine *MachineState
+					for _, ms := range g.state.machines {
+						if ms != nil && ms.Machine.GetType() == MachineEnd {
+							endMachine = ms
+							endMachine.IsPlaced = true
+							endMachine.RunAdded = g.state.run
+							break
+						}
+					}
+					g.state.machines = make([]*MachineState, gridCols*gridRows)
+					if endMachine != nil {
+						// Place End at a random position
+						endRow := 1 + rand.Intn(displayRows)
+						endCol := 1 + rand.Intn(displayCols)
+						endPos := endRow*gridCols + endCol
+						g.state.machines[endPos] = endMachine
+					}
+					// Reset available machines
+					g.state.availableMachines = []*MachineState{
+						{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+						{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+						{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+					}
 				} else {
 					g.state.gameOver = true
 					g.state.phase = PhaseGameOver
