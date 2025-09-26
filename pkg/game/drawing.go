@@ -41,7 +41,7 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 
 	// Current Round Score (centered in the middle)
 	scoreText := fmt.Sprintf("Round Score: %d", g.state.baseScore)
-	scoreX := (g.screenWidth - len(scoreText)*6) / 2  // Approximate centering, assuming ~6px per char
+	scoreX := (g.screenWidth - len(scoreText)*6) / 2 // Approximate centering, assuming ~6px per char
 	ebitenutil.DebugPrintAt(screen, scoreText, scoreX, g.bottomY+20)
 
 	// Start/Stop Run Button (100px on the right)

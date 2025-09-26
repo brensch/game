@@ -8,6 +8,8 @@ import (
 var (
 	lastTouchCount int
 	touchPressed   bool
+	lastTouchX     int
+	lastTouchY     int
 )
 
 // InputState represents the current input state
@@ -76,6 +78,7 @@ func GetUnifiedInput() InputState {
 		// Use the first touch (earliest touch)
 		id := touchIDs[0]
 		x, y := ebiten.TouchPosition(id)
+		lastTouchX, lastTouchY = x, y
 		return InputState{
 			Pressed:      true,
 			JustPressed:  justPressed,
@@ -90,8 +93,8 @@ func GetUnifiedInput() InputState {
 			Pressed:      false,
 			JustPressed:  false,
 			JustReleased: true,
-			X:            0, // No position on release
-			Y:            0,
+			X:            lastTouchX,
+			Y:            lastTouchY,
 		}
 	}
 
