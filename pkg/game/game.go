@@ -123,6 +123,7 @@ type Button struct {
 	Color               color.RGBA
 	Font                font.Face
 	States              map[GamePhase]ButtonState
+	CustomRender        func(screen *ebiten.Image, b *Button, phase GamePhase)
 }
 
 // Init initializes the button with dimensions.
@@ -145,7 +146,12 @@ func (b *Button) Render(screen *ebiten.Image, phase GamePhase) {
 		btnColor = color.RGBA{R: 100, G: 100, B: 100, A: 255}
 	}
 	vector.DrawFilledRect(screen, float32(b.X), float32(b.Y), float32(b.Width), float32(b.Height), btnColor, false)
-	text.Draw(screen, state.Text, b.Font, b.X+5, b.Y+b.Height/2+5, color.Black)
+	
+	if b.CustomRender != nil {
+		b.CustomRender(screen, b, phase)
+	} else {
+		text.Draw(screen, state.Text, b.Font, b.X+5, b.Y+b.Height/2+5, color.Black)
+	}
 }
 
 // IsClicked checks if the button was clicked using the input state.
@@ -283,6 +289,9 @@ func (g *Game) initButtons() {
 	rotateLeftBtn.States[PhaseBuild] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false}
 	rotateLeftBtn.States[PhaseRun] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false}
 	rotateLeftBtn.Font = g.font
+	rotateLeftBtn.CustomRender = func(screen *ebiten.Image, b *Button, phase GamePhase) {
+		g.drawRotateArrow(screen, b.X, b.Y, b.Width, b.Height, true)
+	}
 	g.state.buttons["rotate_left"] = rotateLeftBtn
 
 	// Rotate clockwise button
@@ -294,6 +303,9 @@ func (g *Game) initButtons() {
 	rotateRightBtn.States[PhaseBuild] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false}
 	rotateRightBtn.States[PhaseRun] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false}
 	rotateRightBtn.Font = g.font
+	rotateRightBtn.CustomRender = func(screen *ebiten.Image, b *Button, phase GamePhase) {
+		g.drawRotateArrow(screen, b.X, b.Y, b.Width, b.Height, false)
+	}
 	g.state.buttons["rotate_right"] = rotateRightBtn
 }
 
