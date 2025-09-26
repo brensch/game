@@ -22,9 +22,6 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 	vector.DrawFilledRect(screen, 10, float32(g.topPanelY), float32(g.screenWidth-20), float32(g.topPanelHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Total Score: %d x %d = %d", g.state.baseScore, g.state.multiplier, g.state.baseScore*g.state.multiplier), 20, g.topPanelY+20)
 
-	// Restart button
-	g.state.buttons["restart"].Render(screen)
-
 	// Foreman panel - Money and Run
 	vector.DrawFilledRect(screen, 10, float32(g.foremanY), float32(g.screenWidth-20), float32(g.foremanHeight), color.RGBA{R: 100, G: 100, B: 100, A: 255}, false)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Money: $%d", g.state.money), 20, g.foremanY+20)
@@ -34,16 +31,15 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 	// Bottom Panel
 	vector.DrawFilledRect(screen, 10, float32(g.bottomY), float32(g.screenWidth-20), float32(g.bottomHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
 
-	// Sell Button
-	g.state.buttons["sell"].Render(screen)
-
 	// Current Round Score (centered in the middle)
 	scoreText := fmt.Sprintf("Round Score: %d", g.state.baseScore)
 	scoreX := (g.screenWidth - len(scoreText)*6) / 2 // Approximate centering, assuming ~6px per char
 	ebitenutil.DebugPrintAt(screen, scoreText, scoreX, g.bottomY+20)
 
-	// Start/Stop Run Button
-	g.state.buttons["run"].Render(screen)
+	// Render all buttons
+	for _, button := range g.state.buttons {
+		button.Render(screen, g.state.phase)
+	}
 }
 
 func (g *Game) drawFactoryFloor(screen *ebiten.Image) {
@@ -125,8 +121,8 @@ func (g *Game) drawMachines(screen *ebiten.Image) {
 	}
 
 	// Rotation buttons
-	g.state.buttons["rotate_left"].Render(screen)
-	g.state.buttons["rotate_right"].Render(screen)
+	g.state.buttons["rotate_left"].Render(screen, g.state.phase)
+	g.state.buttons["rotate_right"].Render(screen, g.state.phase)
 }
 
 func (g *Game) drawObjects(screen *ebiten.Image) {

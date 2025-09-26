@@ -6,14 +6,14 @@ func (g *Game) handleDragAndDrop() {
 	if g.lastInput.JustPressed {
 
 		// Check rotation buttons first
-		if g.state.buttons["rotate_left"].IsClicked(g.lastInput) {
+		if g.state.buttons["rotate_left"].IsClicked(g.lastInput, g.state.phase) {
 			selected := g.getSelectedMachine()
 			if selected != nil {
 				selected.Orientation = (selected.Orientation + 3) % 4
 			}
 			return
 		}
-		if g.state.buttons["rotate_right"].IsClicked(g.lastInput) {
+		if g.state.buttons["rotate_right"].IsClicked(g.lastInput, g.state.phase) {
 			selected := g.getSelectedMachine()
 			if selected != nil {
 				selected.Orientation = (selected.Orientation + 1) % 4
