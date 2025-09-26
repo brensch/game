@@ -90,7 +90,7 @@ func (g *Game) handleRunPhase() {
 					g.state.run = 1
 					g.state.round++
 					g.state.targetScore = g.state.round * g.state.round * 10
-					g.state.money += 10
+					g.state.money += g.state.round * 10
 					// Reset machines: keep only End, clear others
 					var endMachine *MachineState
 					for _, ms := range g.state.machines {
