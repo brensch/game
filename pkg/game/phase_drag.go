@@ -4,9 +4,6 @@ func (g *Game) handleDragAndDrop() {
 	cx, cy := g.lastInput.X, g.lastInput.Y
 
 	if g.lastInput.JustPressed {
-		g.state.inputPressed = true
-		g.state.pressX = cx
-		g.state.pressY = cy
 
 		// Check rotation buttons first
 		if g.state.buttons["rotate_left"].IsClicked(g.lastInput) {
@@ -54,27 +51,22 @@ func (g *Game) handleDragAndDrop() {
 
 	}
 
-	if g.state.inputPressed && g.lastInput.Pressed {
-		dx := cx - g.state.pressX
-		dy := cy - g.state.pressY
-		if dx*dx+dy*dy > 1000 { // threshold
-			selected := g.getSelectedMachine()
-			if selected != nil {
-				if selected.IsPlaced && selected.Machine.GetType() != MachineEnd {
-					selected.BeingDragged = true
-					pos := g.getPos(selected)
-					selected.OriginalPos = pos
-				} else if !selected.IsPlaced {
-					// from available
-					selected.BeingDragged = true
-					selected.RunAdded = g.state.run
-				}
+	if g.lastInput.IsDragging {
+		selected := g.getSelectedMachine()
+		if selected != nil {
+			if selected.IsPlaced && selected.Machine.GetType() != MachineEnd {
+				selected.BeingDragged = true
+				pos := g.getPos(selected)
+				selected.OriginalPos = pos
+			} else if !selected.IsPlaced {
+				// from available
+				selected.BeingDragged = true
+				selected.RunAdded = g.state.run
 			}
 		}
 	}
 
 	if g.lastInput.JustReleased {
-		g.state.inputPressed = false
 		dragging := g.getDraggingMachine()
 		if dragging != nil {
 			// Place at cursor position
@@ -155,7 +147,5 @@ func (g *Game) handleDragAndDrop() {
 			}
 			dragging.BeingDragged = false
 		}
-
-		g.state.inputPressed = false
 	}
 }

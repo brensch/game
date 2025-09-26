@@ -101,8 +101,6 @@ type GameState struct {
 	animationTick     int
 	animationSpeed    float64
 	buttons           map[string]*Button
-	inputPressed      bool
-	pressX, pressY    int
 }
 
 // Button represents a clickable UI button.
@@ -200,9 +198,6 @@ func NewGame(width, height int) *Game {
 		animationTick:  0,
 		animationSpeed: 1.0,
 		buttons:        make(map[string]*Button),
-		inputPressed:   false,
-		pressX:         0,
-		pressY:         0,
 	}
 
 	g := &Game{state: state}
@@ -359,9 +354,6 @@ func (g *Game) Update() error {
 			animationTick:  0,
 			animationSpeed: 1.0,
 			buttons:        make(map[string]*Button),
-			inputPressed:   false,
-			pressX:         0,
-			pressY:         0,
 		}
 		g.initButtons()
 		// Place random End machine
@@ -399,7 +391,7 @@ func (g *Game) Update() error {
 		g.state.buttons["run"].Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
 	}
 	return nil
-}// Draw draws the game screen.
+} // Draw draws the game screen.
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{R: 40, G: 40, B: 40, A: 255})
 	g.drawUI(screen)
