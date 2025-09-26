@@ -6,8 +6,12 @@ import (
 	"math"
 	"math/rand"
 
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/font/gofont/gomono"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/text"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
@@ -109,6 +113,7 @@ type Button struct {
 	Text                string
 	Disabled            bool
 	Color               color.RGBA
+	Font                font.Face
 }
 
 // Init initializes the button with dimensions.
@@ -129,7 +134,7 @@ func (b *Button) Render(screen *ebiten.Image) {
 		btnColor = color.RGBA{R: 100, G: 100, B: 100, A: 255}
 	}
 	vector.DrawFilledRect(screen, float32(b.X), float32(b.Y), float32(b.Width), float32(b.Height), btnColor, false)
-	ebitenutil.DebugPrintAt(screen, b.Text, b.X+5, b.Y+b.Height/2+5)
+	text.Draw(screen, b.Text, b.Font, b.X+5, b.Y+b.Height/2+5, color.Black)
 }
 
 // IsClicked checks if the button was clicked using the input state.
@@ -154,6 +159,7 @@ type Game struct {
 	cellSize, gridMargin                                         int
 
 	vignetteImage *ebiten.Image
+	font          font.Face
 	lastInput     InputState
 }
 
@@ -203,6 +209,9 @@ func NewGame(width, height int) *Game {
 	g := &Game{state: state}
 	g.width = width
 	g.height = height
+	fontData := gomono.TTF
+	parsed, _ := opentype.Parse(fontData)
+	g.font, _ = opentype.NewFace(parsed, &opentype.FaceOptions{Size: 16, DPI: 72})
 	g.calculateLayout()
 
 	// Initialize buttons
@@ -229,34 +238,40 @@ func (g *Game) initButtons() {
 	restartBtn := &Button{}
 	restartBtn.Init(g.screenWidth-100, g.topPanelY+10, 80, g.topPanelHeight-20, "Restart")
 	restartBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
+	restartBtn.Font = g.font
 	g.state.buttons["restart"] = restartBtn
 
 	// Sell button
 	sellBtn := &Button{}
 	sellBtn.Init(10, g.bottomY+10, buttonWidth, g.bottomHeight-20, "Sell")
 	sellBtn.Color = color.RGBA{R: 255, G: 100, B: 100, A: 255} // Red
+	sellBtn.Font = g.font
 	g.state.buttons["sell"] = sellBtn
 
 	// Start Run button
 	runBtn := &Button{}
 	runBtn.Init(g.screenWidth-10-buttonWidth, g.bottomY+10, buttonWidth, g.bottomHeight-20, "Start Run")
 	runBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
+	runBtn.Font = g.font
 	g.state.buttons["run"] = runBtn
 
 	// Rotate counterclockwise button
 	rotateLeftBtn := &Button{}
-	counterclockwiseX := g.screenWidth - 2*g.cellSize - g.gridMargin
+	gridRightEdge := g.gridStartX + displayCols*g.cellSize + (displayCols-1)*g.gridMargin
+	counterclockwiseX := gridRightEdge - 2*g.cellSize - g.gridMargin
 	counterclockwiseY := g.availableY
 	rotateLeftBtn.Init(counterclockwiseX, counterclockwiseY, g.cellSize, g.cellSize, "<-")
 	rotateLeftBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
+	rotateLeftBtn.Font = g.font
 	g.state.buttons["rotate_left"] = rotateLeftBtn
 
 	// Rotate clockwise button
 	rotateRightBtn := &Button{}
-	clockwiseX := g.screenWidth - g.cellSize
+	clockwiseX := gridRightEdge - g.cellSize
 	clockwiseY := g.availableY
 	rotateRightBtn.Init(clockwiseX, clockwiseY, g.cellSize, g.cellSize, "->")
 	rotateRightBtn.Color = color.RGBA{R: 100, G: 100, B: 200, A: 255} // Blue
+	rotateRightBtn.Font = g.font
 	g.state.buttons["rotate_right"] = rotateRightBtn
 }
 
@@ -478,6 +493,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	g.width = outsideWidth
 	g.height = outsideHeight
 	g.calculateLayout()
+	g.initButtons()
 
 	if g.vignetteImage == nil || g.vignetteImage.Bounds().Dx() != outsideWidth || g.vignetteImage.Bounds().Dy() != outsideHeight {
 		// Create the vignette with 50% strength and a falloff of 1.5
