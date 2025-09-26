@@ -26,6 +26,9 @@ func (p *Processor) Process(position int, history [][]*Object, tick int, orienta
 			return []*Change{{
 				StartObject: obj,
 				EndObject:   &Object{GridPosition: nextPos, Type: (obj.Type + 1) % 3},
+				Score:       0,
+				MultAdd:     0,
+				MultMult:    1,
 			}}
 		}
 	}

@@ -7,7 +7,6 @@ import (
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/text"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"golang.org/x/image/font"
@@ -106,6 +105,10 @@ type GameState struct {
 	animationSpeed    float64
 	buttons           map[string]*Button
 	allChanges        [][]*Change
+	roundScore        int
+	totalScore        int
+	targetScore       int
+	gameOver          bool
 }
 
 // ButtonState represents the state of a button for a phase.
@@ -222,6 +225,11 @@ func NewGame(width, height int) *Game {
 		animationTick:  0,
 		animationSpeed: 1.0,
 		buttons:        make(map[string]*Button),
+		multiplier:     1,
+		roundScore:     0,
+		totalScore:     0,
+		targetScore:    10, // round * 10
+		gameOver:       false,
 	}
 
 	g := &Game{state: state}
@@ -307,6 +315,15 @@ func (g *Game) initButtons() {
 		g.drawRotateArrow(screen, b.X, b.Y, b.Width, b.Height, false)
 	}
 	g.state.buttons["rotate_right"] = rotateRightBtn
+
+	// Popup restart button (for game over)
+	popupRestartBtn := &Button{}
+	popupRestartBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Restart")
+	popupRestartBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
+	popupRestartBtn.States[PhaseBuild] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false}
+	popupRestartBtn.States[PhaseRun] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false}
+	popupRestartBtn.Font = g.font
+	g.state.buttons["popup_restart"] = popupRestartBtn
 }
 
 func (g *Game) calculateLayout() {
@@ -409,6 +426,11 @@ func (g *Game) Update() error {
 			animationSpeed: 1.0,
 			buttons:        make(map[string]*Button),
 			allChanges:     nil,
+			multiplier:     1,
+			roundScore:     0,
+			totalScore:     0,
+			targetScore:    10,
+			gameOver:       false,
 		}
 		g.initButtons()
 		// Place random End machine
@@ -437,6 +459,39 @@ func (g *Game) Update() error {
 		}
 	}
 
+	if g.state.gameOver && g.state.buttons["popup_restart"].IsClicked(g.lastInput, g.state.phase) {
+		// Reset game state
+		g.state = &GameState{
+			phase:          PhaseBuild,
+			money:          7,
+			run:            1,
+			maxRuns:        6,
+			machines:       make([]*MachineState, gridCols*gridRows),
+			round:          1,
+			animations:     []*Animation{},
+			animationTick:  0,
+			animationSpeed: 1.0,
+			buttons:        make(map[string]*Button),
+			allChanges:     nil,
+			multiplier:     1,
+			roundScore:     0,
+			totalScore:     0,
+			targetScore:    10,
+			gameOver:       false,
+		}
+		g.initButtons()
+		// Place random End machine
+		endRow := 1 + rand.Intn(displayRows)
+		endCol := 1 + rand.Intn(displayCols)
+		endPos := endRow*gridCols + endCol
+		g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
+		g.state.availableMachines = []*MachineState{
+			{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+			{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+			{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+		}
+	}
+
 	return nil
 } // Draw draws the game screen.
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -456,12 +511,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	// Debug input state
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Input: P:%v JP:%v JR:%v X:%d Y:%d", g.lastInput.Pressed, g.lastInput.JustPressed, g.lastInput.JustReleased, g.lastInput.X, g.lastInput.Y), 10, 10)
-	runButtonX := g.screenWidth - 10 - buttonWidth
-	runButtonY := g.bottomY + 10
-	runButtonWidth := buttonWidth
-	runButtonHeight := g.bottomHeight - 20
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("RunBtn: X:%d-%d Y:%d-%d", runButtonX-10, runButtonX+runButtonWidth+10, runButtonY-10, runButtonY+runButtonHeight+10), 10, 30)
+	// ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Input: P:%v JP:%v JR:%v X:%d Y:%d", g.lastInput.Pressed, g.lastInput.JustPressed, g.lastInput.JustReleased, g.lastInput.X, g.lastInput.Y), 10, 10)
+	// runButtonX := g.screenWidth - 10 - buttonWidth
+	// runButtonY := g.bottomY + 10
+	// runButtonWidth := buttonWidth
+	// runButtonHeight := g.bottomHeight - 20
+	// ebitenutil.DebugPrintAt(screen, fmt.Sprintf("RunBtn: X:%d-%d Y:%d-%d", runButtonX-10, runButtonX+runButtonWidth+10, runButtonY-10, runButtonY+runButtonHeight+10), 10, 30)
 
 	// Apply CRT effects
 	g.drawScanlines(screen)
@@ -469,6 +524,19 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if g.vignetteImage != nil {
 		op := &ebiten.DrawImageOptions{}
 		screen.DrawImage(g.vignetteImage, op)
+	}
+
+	// Draw game over popup
+	if g.state.gameOver {
+		popupX := g.screenWidth/2 - 150
+		popupY := g.height/2 - 100
+		popupW := 300
+		popupH := 200
+		vector.DrawFilledRect(screen, float32(popupX), float32(popupY), float32(popupW), float32(popupH), color.RGBA{R: 50, G: 50, B: 50, A: 200}, false)
+		vector.DrawFilledRect(screen, float32(popupX), float32(popupY), float32(popupW), float32(popupH), color.RGBA{R: 0, G: 0, B: 0, A: 0}, true) // Border
+		text.Draw(screen, "Game Over", g.font, popupX+20, popupY+30, color.White)
+		text.Draw(screen, fmt.Sprintf("Final Score: %d", g.state.totalScore), g.font, popupX+20, popupY+60, color.White)
+		g.state.buttons["popup_restart"].Render(screen, g.state.phase)
 	}
 }
 

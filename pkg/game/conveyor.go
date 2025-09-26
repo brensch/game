@@ -26,6 +26,9 @@ func (c *Conveyor) Process(position int, history [][]*Object, tick int, orientat
 			return []*Change{{
 				StartObject: obj,
 				EndObject:   &Object{GridPosition: nextPos, Type: obj.Type},
+				Score:       0,
+				MultAdd:     0,
+				MultMult:    1,
 			}}
 		}
 	}

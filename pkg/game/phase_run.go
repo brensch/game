@@ -34,9 +34,17 @@ func (g *Game) handleRunPhase() {
 			g.state.animationSpeed = 1.0
 			g.state.allChanges = nil
 			g.state.run++
+			// Add run score to total
+			g.state.totalScore += g.state.roundScore * g.state.multiplier
+			g.state.roundScore = 0
+			g.state.multiplier = 1
 			if g.state.run > g.state.maxRuns {
 				g.state.run = 1
 				g.state.round++
+				g.state.targetScore = g.state.round * 10
+				if g.state.totalScore < g.state.targetScore {
+					g.state.gameOver = true
+				}
 			}
 			// Move end to random location up to 2 squares away
 			for pos, ms := range g.state.machines {
@@ -74,6 +82,12 @@ func (g *Game) handleRunPhase() {
 			// Start new tick
 			tickChanges := changes[g.state.animationTick]
 			g.state.animations = []*Animation{}
+			// Accumulate scores
+			for _, ch := range tickChanges {
+				g.state.roundScore += ch.Score
+				g.state.multiplier += ch.MultAdd
+				g.state.multiplier *= ch.MultMult
+			}
 			for _, ch := range tickChanges {
 				if ch.StartObject == nil || ch.EndObject == nil {
 					continue

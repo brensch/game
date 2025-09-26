@@ -38,6 +38,9 @@ func (m *Miner) Process(position int, history [][]*Object, tick int, orientation
 		return []*Change{{
 			StartObject: &Object{GridPosition: position, Type: objType},
 			EndObject:   &Object{GridPosition: nextPos, Type: objType},
+			Score:       0,
+			MultAdd:     0,
+			MultMult:    1,
 		}}
 	}
 	return nil

@@ -84,4 +84,7 @@ type MachineInterface interface {
 type Change struct {
 	StartObject *Object
 	EndObject   *Object
+	Score       int
+	MultAdd     int
+	MultMult    int
 }
