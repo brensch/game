@@ -90,6 +90,7 @@ func (g *Game) handleRunPhase() {
 					g.state.run = 1
 					g.state.round++
 					g.state.targetScore = g.state.round * 10
+					g.state.money += 10
 				} else {
 					g.state.gameOver = true
 					g.state.phase = PhaseGameOver
