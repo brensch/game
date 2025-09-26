@@ -8,7 +8,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
@@ -107,7 +106,7 @@ type GameState struct {
 	availableMachines []*MachineState
 	objects           []*Object
 	round             int
-	mousePressed      bool
+	inputPressed      bool
 	pressX, pressY    int
 	running           bool
 	animations        []*Animation
@@ -330,8 +329,9 @@ func (g *Game) Update() error {
 	}
 
 	// Check for "Start Run" button click
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		cx, cy := ebiten.CursorPosition()
+	input := GetUnifiedInput()
+	if input.JustPressed {
+		cx, cy := input.X, input.Y
 		// Simple button detection for "Start Run"
 		if cx > 250 && cx < g.screenWidth-30 && cy > g.bottomY+10 && cy < g.bottomY+10+g.bottomHeight-20 {
 			if g.state.phase == PhaseBuild {
@@ -371,10 +371,11 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) handleDragAndDrop() {
-	cx, cy := ebiten.CursorPosition()
+	input := GetUnifiedInput()
+	cx, cy := input.X, input.Y
 
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		g.state.mousePressed = true
+	if input.JustPressed {
+		g.state.inputPressed = true
 		g.state.pressX, g.state.pressY = cx, cy
 
 		// Check rotation buttons first
@@ -453,13 +454,13 @@ func (g *Game) handleDragAndDrop() {
 		}
 	}
 
-	if g.state.mousePressed {
+	if g.state.inputPressed && input.Pressed {
 		dx := cx - g.state.pressX
 		dy := cy - g.state.pressY
 		if dx*dx+dy*dy > 1000 { // threshold
 			selected := g.getSelectedMachine()
 			if selected != nil {
-				if selected.IsPlaced && selected.Machine.GetType() != MachineMiner && selected.Machine.GetType() != MachineEnd && selected.RunAdded == g.state.run {
+				if selected.IsPlaced && selected.Machine.GetType() != MachineEnd {
 					selected.BeingDragged = true
 					pos := g.getPos(selected)
 					selected.OriginalPos = pos
@@ -472,7 +473,7 @@ func (g *Game) handleDragAndDrop() {
 		}
 	}
 
-	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+	if input.JustReleased {
 		dragging := g.getDraggingMachine()
 		if dragging != nil {
 			// Place at cursor position
@@ -553,7 +554,7 @@ func (g *Game) handleDragAndDrop() {
 			}
 			dragging.BeingDragged = false
 		}
-		g.state.mousePressed = false
+		g.state.inputPressed = false
 	}
 }
 
@@ -569,7 +570,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// Draw the dragging machine on top
 	dragging := g.getDraggingMachine()
 	if dragging != nil {
-		cx, cy := ebiten.CursorPosition()
+		cx, cy := GetCursorPosition()
 		vector.DrawFilledRect(screen, float32(cx-cellSize/2), float32(cy-cellSize/2), cellSize, cellSize, dragging.Machine.GetColor(), false)
 	}
 
@@ -784,7 +785,7 @@ func (g *Game) drawObjects(screen *ebiten.Image) {
 }
 
 func (g *Game) drawTooltips(screen *ebiten.Image) {
-	cx, cy := ebiten.CursorPosition()
+	cx, cy := GetCursorPosition()
 
 	// Check for selected machine first
 	selected := g.getSelectedMachine()
