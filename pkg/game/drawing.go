@@ -21,20 +21,19 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 	// Top panel - Total Score and Target
 	vector.DrawFilledRect(screen, 10, float32(g.topPanelY), float32(g.screenWidth-20), float32(g.topPanelHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Total Score: %d", g.state.totalScore), 20, g.topPanelY+20)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Target: %d", g.state.targetScore), 200, g.topPanelY+20)
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round Target: %d", g.state.targetScore), 200, g.topPanelY+20)
 
-	// Foreman panel - Money, Run, Round, Multiplier
+	// Foreman panel - Money, Run, Round
 	vector.DrawFilledRect(screen, 10, float32(g.foremanY), float32(g.screenWidth-20), float32(g.foremanHeight), color.RGBA{R: 100, G: 100, B: 100, A: 255}, false)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Money: $%d", g.state.money), 20, g.foremanY+20)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Run: %d/%d", g.state.run, g.state.maxRuns), 200, g.foremanY+20)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round: %d", g.state.round), 200, g.foremanY+50)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Multiplier: %d", g.state.multiplier), 350, g.foremanY+20)
 
 	// Bottom Panel
 	vector.DrawFilledRect(screen, 10, float32(g.bottomY), float32(g.screenWidth-20), float32(g.bottomHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
 
-	// Current Round Score (centered in the middle)
-	scoreText := fmt.Sprintf("Round Score: %d x %d", g.state.roundScore, g.state.multiplier)
+	// Current Run Score (centered in the middle)
+	scoreText := fmt.Sprintf("Run Score: %d x %d", g.state.roundScore, g.state.multiplier)
 	scoreX := (g.screenWidth - len(scoreText)*6) / 2 // Approximate centering, assuming ~6px per char
 	ebitenutil.DebugPrintAt(screen, scoreText, scoreX, g.bottomY+20)
 

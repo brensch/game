@@ -44,6 +44,7 @@ func (g *Game) handleRunPhase() {
 				g.state.targetScore = g.state.round * 10
 				if g.state.totalScore < g.state.targetScore {
 					g.state.gameOver = true
+					g.state.phase = PhaseGameOver
 				}
 			}
 			// Move end to random location up to 2 squares away
