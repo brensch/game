@@ -254,17 +254,17 @@ func (g *Game) drawTooltips(screen *ebiten.Image) {
 func (g *Game) drawTooltip(screen *ebiten.Image, name, text string, cost int, x, y int) {
 	// Create tooltip text with name, description and cost
 	costText := fmt.Sprintf("Cost: $%d", cost)
-	
+
 	// Wrap description text to fit within 300px width
 	maxWidthPx := 300
 	charWidth := 6
 	maxCharsPerLine := maxWidthPx / charWidth
 	wrappedLines := g.wrapText(text, maxCharsPerLine)
-	
+
 	// Calculate box dimensions
-	boxWidth := maxWidthPx + 20 // Fixed width
+	boxWidth := maxWidthPx + 20                      // Fixed width
 	boxHeight := 15 + len(wrappedLines)*15 + 15 + 20 // Name + lines + cost + padding
-	
+
 	// Position box above the point
 	boxX := x - boxWidth/2
 	boxY := y - boxHeight - 5

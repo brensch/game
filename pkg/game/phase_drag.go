@@ -54,7 +54,7 @@ func (g *Game) handleDragAndDrop() {
 	if g.lastInput.IsDragging {
 		selected := g.getSelectedMachine()
 		if selected != nil {
-			if selected.IsPlaced && selected.Machine.GetType() != MachineEnd {
+			if selected.IsPlaced && selected.Machine.GetType() != MachineEnd && selected.RunAdded == g.state.run {
 				selected.BeingDragged = true
 				pos := g.getPos(selected)
 				selected.OriginalPos = pos
@@ -139,7 +139,7 @@ func (g *Game) handleDragAndDrop() {
 				sellWidth := 120
 				sellHeight := g.bottomHeight - 20
 				if cx >= sellX-10 && cx <= sellX+sellWidth+10 && cy >= sellY-10 && cy <= sellY+sellHeight+10 {
-					if dragging.IsPlaced && dragging.Machine.GetType() != MachineMiner && dragging.Machine.GetType() != MachineEnd {
+					if dragging.IsPlaced && dragging.RunAdded == g.state.run {
 						// Sell the machine
 						g.state.money += dragging.Machine.GetCost()
 						// Remove from grid
