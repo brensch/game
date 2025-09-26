@@ -15,7 +15,7 @@ func (g *Game) handleDragAndDrop() {
 		// Check rotation buttons first
 		counterclockwiseX := g.screenWidth - 2*g.cellSize - g.gridMargin
 		counterclockwiseY := g.availableY
-		if cx >= counterclockwiseX && cx <= counterclockwiseX+g.cellSize && cy >= counterclockwiseY && cy <= counterclockwiseY+g.cellSize {
+		if cx >= counterclockwiseX-10 && cx <= counterclockwiseX+g.cellSize+10 && cy >= counterclockwiseY-10 && cy <= counterclockwiseY+g.cellSize+10 {
 			selected := g.getSelectedMachine()
 			if selected != nil {
 				selected.Orientation = (selected.Orientation + 3) % 4
@@ -24,7 +24,7 @@ func (g *Game) handleDragAndDrop() {
 		}
 		clockwiseX := g.screenWidth - g.cellSize
 		clockwiseY := g.availableY
-		if cx >= clockwiseX && cx <= clockwiseX+g.cellSize && cy >= clockwiseY && cy <= clockwiseY+g.cellSize {
+		if cx >= clockwiseX-10 && cx <= clockwiseX+g.cellSize+10 && cy >= clockwiseY-10 && cy <= clockwiseY+g.cellSize+10 {
 			selected := g.getSelectedMachine()
 			if selected != nil {
 				selected.Orientation = (selected.Orientation + 1) % 4
@@ -48,7 +48,7 @@ func (g *Game) handleDragAndDrop() {
 		for i, ms := range g.state.availableMachines {
 			x := g.gridStartX + i*(g.cellSize+g.gridMargin)
 			y := g.availableY
-			if cx >= x && cx <= x+g.cellSize && cy >= y && cy <= y+g.cellSize {
+			if cx >= x-10 && cx <= x+g.cellSize+10 && cy >= y-10 && cy <= y+g.cellSize+10 {
 				ms.Selected = true
 				break
 			}
@@ -60,32 +60,6 @@ func (g *Game) handleDragAndDrop() {
 			ms.Selected = true
 		}
 
-		// Check run button
-		runButtonX := 250
-		runButtonY := g.bottomY + 10
-		runButtonWidth := g.screenWidth - 30 - 250
-		runButtonHeight := g.bottomHeight - 20
-		if cx >= runButtonX && cx <= runButtonX+runButtonWidth && cy >= runButtonY && cy <= runButtonY+runButtonHeight {
-			if !g.state.running {
-				g.state.running = true
-				changes, _ := SimulateRun(g.state.machines)
-				for i, tickChanges := range changes {
-					fmt.Printf("Tick %d: %d changes\n", i, len(tickChanges))
-					for _, ch := range tickChanges {
-						startStr := "nil"
-						if ch.StartObject != nil {
-							startStr = fmt.Sprintf("pos %d type %d", ch.StartObject.GridPosition, ch.StartObject.Type)
-						}
-						endStr := "nil"
-						if ch.EndObject != nil {
-							endStr = fmt.Sprintf("pos %d type %d", ch.EndObject.GridPosition, ch.EndObject.Type)
-						}
-						fmt.Printf("  Change: Start %s -> End %s\n", startStr, endStr)
-					}
-				}
-				g.state.running = false
-			}
-		}
 	}
 
 	if g.state.inputPressed && input.Pressed {
@@ -116,7 +90,7 @@ func (g *Game) handleDragAndDrop() {
 				for c := 0; c < displayCols; c++ {
 					x := g.gridStartX + c*(g.cellSize+g.gridMargin)
 					y := g.gridStartY + r*(g.cellSize+g.gridMargin)
-					if cx >= x && cx <= x+g.cellSize && cy >= y && cy <= y+g.cellSize {
+					if cx >= x-10 && cx <= x+g.cellSize+10 && cy >= y-10 && cy <= y+g.cellSize+10 {
 						position := (r+1)*gridCols + (c + 1)
 						if g.state.machines[position] == nil {
 							gridX, gridY = c, r
@@ -172,7 +146,7 @@ func (g *Game) handleDragAndDrop() {
 				sellY := g.bottomY + 10
 				sellWidth := 120
 				sellHeight := g.bottomHeight - 20
-				if cx >= sellX && cx <= sellX+sellWidth && cy >= sellY && cy <= sellY+sellHeight {
+				if cx >= sellX-10 && cx <= sellX+sellWidth+10 && cy >= sellY-10 && cy <= sellY+sellHeight+10 {
 					if dragging.IsPlaced && dragging.Machine.GetType() != MachineMiner && dragging.Machine.GetType() != MachineEnd {
 						// Sell the machine
 						g.state.money += 1
@@ -188,6 +162,34 @@ func (g *Game) handleDragAndDrop() {
 			}
 			dragging.BeingDragged = false
 		}
+
+		// Check run button
+		runButtonX := 250
+		runButtonY := g.bottomY + 10
+		runButtonWidth := g.screenWidth - 30 - 250
+		runButtonHeight := g.bottomHeight - 20
+		if cx >= runButtonX-10 && cx <= runButtonX+runButtonWidth+10 && cy >= runButtonY-10 && cy <= runButtonY+runButtonHeight+10 {
+			if !g.state.running {
+				g.state.running = true
+				changes, _ := SimulateRun(g.state.machines)
+				for i, tickChanges := range changes {
+					fmt.Printf("Tick %d: %d changes\n", i, len(tickChanges))
+					for _, ch := range tickChanges {
+						startStr := "nil"
+						if ch.StartObject != nil {
+							startStr = fmt.Sprintf("pos %d type %d", ch.StartObject.GridPosition, ch.StartObject.Type)
+						}
+						endStr := "nil"
+						if ch.EndObject != nil {
+							endStr = fmt.Sprintf("pos %d type %d", ch.EndObject.GridPosition, ch.EndObject.Type)
+						}
+						fmt.Printf("  Change: Start %s -> End %s\n", startStr, endStr)
+					}
+				}
+				g.state.running = false
+			}
+		}
+
 		g.state.inputPressed = false
 	}
 }
