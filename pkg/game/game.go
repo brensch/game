@@ -22,8 +22,6 @@ const (
 	gridRows    = 9
 	displayCols = 7
 	displayRows = 7
-	cellSize    = 60
-	gridMargin  = 10
 )
 
 // ObjectType represents the different kinds of items that can move through the factory.
@@ -121,6 +119,7 @@ type Game struct {
 	topPanelHeight, foremanHeight, availableHeight, bottomHeight int
 	topPanelY, foremanY, gridStartY, availableY, bottomY         int
 	screenWidth, gridStartX                                      int
+	cellSize, gridMargin                                         int
 
 	vignetteImage *ebiten.Image
 }
@@ -194,10 +193,27 @@ func (g *Game) calculateLayout() {
 	g.availableHeight = availableHeight
 	g.bottomHeight = bottomHeight
 
-	gridHeight := displayRows*cellSize + (displayRows-1)*gridMargin
-	gap := (g.height - 760) / 5
-	if gap < 0 {
-		gap = 0
+	marginRatio := 1.0 / 6.0
+	availableWidth := g.screenWidth - 40
+	availableHeight := g.height - (g.topPanelHeight + g.foremanHeight + g.availableHeight + g.bottomHeight + 4*minGap)
+	widthFactor := float64(displayCols) + float64(displayCols-1)*marginRatio
+	heightFactor := float64(displayRows) + float64(displayRows-1)*marginRatio
+	cellSizeW := int(float64(availableWidth) / widthFactor)
+	cellSizeH := int(float64(availableHeight) / heightFactor)
+	g.cellSize = cellSizeW
+	if cellSizeH < g.cellSize {
+		g.cellSize = cellSizeH
+	}
+	if g.cellSize < 10 {
+		g.cellSize = 10
+	}
+	g.gridMargin = int(float64(g.cellSize) * marginRatio)
+
+	gridHeight := displayRows*g.cellSize + (displayRows-1)*g.gridMargin
+	totalFixedHeight := g.topPanelHeight + g.foremanHeight + gridHeight + g.availableHeight + g.bottomHeight
+	gap := (g.height - totalFixedHeight) / 5
+	if gap < minGap {
+		gap = minGap
 	}
 	g.topPanelY = gap
 	g.foremanY = g.topPanelY + g.topPanelHeight + gap
@@ -205,12 +221,12 @@ func (g *Game) calculateLayout() {
 	g.availableY = g.gridStartY + gridHeight + gap
 	g.bottomY = g.availableY + g.availableHeight + gap
 	g.screenWidth = g.width
-	g.gridStartX = (g.screenWidth - (displayCols*cellSize + (displayCols-1)*gridMargin)) / 2
+	g.gridStartX = (g.screenWidth - (displayCols*g.cellSize + (displayCols-1)*g.gridMargin)) / 2
 }
 
 func (g *Game) getMachineAt(cx, cy int) *MachineState {
-	col := (cx - g.gridStartX) / (cellSize + gridMargin)
-	row := (cy - g.gridStartY) / (cellSize + gridMargin)
+	col := (cx - g.gridStartX) / (g.cellSize + g.gridMargin)
+	row := (cy - g.gridStartY) / (g.cellSize + g.gridMargin)
 	if col < 0 || col >= displayCols || row < 0 || row >= displayRows {
 		return nil
 	}
@@ -293,10 +309,10 @@ func (g *Game) Update() error {
 				startGridY := ch.StartObject.GridPosition / gridCols
 				endGridX := ch.EndObject.GridPosition % gridCols
 				endGridY := ch.EndObject.GridPosition / gridCols
-				startX := float64(g.gridStartX + (startGridX-1)*(cellSize+gridMargin) + cellSize/2)
-				startY := float64(g.gridStartY + (startGridY-1)*(cellSize+gridMargin) + cellSize/2)
-				endX := float64(g.gridStartX + (endGridX-1)*(cellSize+gridMargin) + cellSize/2)
-				endY := float64(g.gridStartY + (endGridY-1)*(cellSize+gridMargin) + cellSize/2)
+				startX := float64(g.gridStartX + (startGridX-1)*(g.cellSize+g.gridMargin) + g.cellSize/2)
+				startY := float64(g.gridStartY + (startGridY-1)*(g.cellSize+g.gridMargin) + g.cellSize/2)
+				endX := float64(g.gridStartX + (endGridX-1)*(g.cellSize+g.gridMargin) + g.cellSize/2)
+				endY := float64(g.gridStartY + (endGridY-1)*(g.cellSize+g.gridMargin) + g.cellSize/2)
 				objColor := color.RGBA{R: 255, A: 255}
 				switch ch.StartObject.Type {
 				case ObjectGreen:
@@ -379,18 +395,18 @@ func (g *Game) handleDragAndDrop() {
 		g.state.pressX, g.state.pressY = cx, cy
 
 		// Check rotation buttons first
-		counterclockwiseX := g.screenWidth - 2*cellSize - gridMargin
+		counterclockwiseX := g.screenWidth - 2*g.cellSize - g.gridMargin
 		counterclockwiseY := g.availableY
-		if cx >= counterclockwiseX && cx <= counterclockwiseX+cellSize && cy >= counterclockwiseY && cy <= counterclockwiseY+cellSize {
+		if cx >= counterclockwiseX && cx <= counterclockwiseX+g.cellSize && cy >= counterclockwiseY && cy <= counterclockwiseY+g.cellSize {
 			selected := g.getSelectedMachine()
 			if selected != nil {
 				selected.Orientation = (selected.Orientation + 3) % 4
 			}
 			return
 		}
-		clockwiseX := g.screenWidth - cellSize
+		clockwiseX := g.screenWidth - g.cellSize
 		clockwiseY := g.availableY
-		if cx >= clockwiseX && cx <= clockwiseX+cellSize && cy >= clockwiseY && cy <= clockwiseY+cellSize {
+		if cx >= clockwiseX && cx <= clockwiseX+g.cellSize && cy >= clockwiseY && cy <= clockwiseY+g.cellSize {
 			selected := g.getSelectedMachine()
 			if selected != nil {
 				selected.Orientation = (selected.Orientation + 1) % 4
@@ -412,9 +428,9 @@ func (g *Game) handleDragAndDrop() {
 
 		// Check if picking from available
 		for i, ms := range g.state.availableMachines {
-			x := g.gridStartX + i*(cellSize+gridMargin)
+			x := g.gridStartX + i*(g.cellSize+g.gridMargin)
 			y := g.availableY
-			if cx >= x && cx <= x+cellSize && cy >= y && cy <= y+cellSize {
+			if cx >= x && cx <= x+g.cellSize && cy >= y && cy <= y+g.cellSize {
 				ms.Selected = true
 				break
 			}
@@ -480,9 +496,9 @@ func (g *Game) handleDragAndDrop() {
 			gridX, gridY := -1, -1
 			for r := 0; r < displayRows; r++ {
 				for c := 0; c < displayCols; c++ {
-					x := g.gridStartX + c*(cellSize+gridMargin)
-					y := g.gridStartY + r*(cellSize+gridMargin)
-					if cx >= x && cx <= x+cellSize && cy >= y && cy <= y+cellSize {
+					x := g.gridStartX + c*(g.cellSize+g.gridMargin)
+					y := g.gridStartY + r*(g.cellSize+g.gridMargin)
+					if cx >= x && cx <= x+g.cellSize && cy >= y && cy <= y+g.cellSize {
 						position := (r+1)*gridCols + (c + 1)
 						if g.state.machines[position] == nil {
 							gridX, gridY = c, r
@@ -571,7 +587,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	dragging := g.getDraggingMachine()
 	if dragging != nil {
 		cx, cy := GetCursorPosition()
-		vector.DrawFilledRect(screen, float32(cx-cellSize/2), float32(cy-cellSize/2), cellSize, cellSize, dragging.Machine.GetColor(), false)
+		vector.DrawFilledRect(screen, float32(cx-g.cellSize/2), float32(cy-g.cellSize/2), float32(g.cellSize), float32(g.cellSize), dragging.Machine.GetColor(), false)
 	}
 
 	// Apply CRT effects
@@ -679,32 +695,45 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 func (g *Game) drawFactoryFloor(screen *ebiten.Image) {
 	for r := 0; r < displayRows; r++ {
 		for c := 0; c < displayCols; c++ {
-			x := g.gridStartX + c*(cellSize+gridMargin)
-			y := g.gridStartY + r*(cellSize+gridMargin)
-			vector.DrawFilledRect(screen, float32(x), float32(y), cellSize, cellSize, color.RGBA{R: 60, G: 60, B: 60, A: 255}, false)
+			x := g.gridStartX + c*(g.cellSize+g.gridMargin)
+			y := g.gridStartY + r*(g.cellSize+g.gridMargin)
+			vector.DrawFilledRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), color.RGBA{R: 60, G: 60, B: 60, A: 255}, false)
 		}
 	}
 }
 
 func (g *Game) drawArrow(screen *ebiten.Image, x, y float32, orientation Orientation) {
 	arrowColor := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	arrowSize := float32(g.cellSize / 6)
+	centerX := x + float32(g.cellSize)/2
+	shaftStartY := y + arrowSize
+	shaftEndY := y + float32(g.cellSize) - arrowSize
+	arrowY := y + 2*arrowSize
+	leftX := centerX - arrowSize
+	rightX := centerX + arrowSize
+	shaftY := y + float32(g.cellSize)/2
+	shaftLeft := x + arrowSize
+	shaftRight := x + float32(g.cellSize) - arrowSize
+	arrowX := x + float32(g.cellSize) - 2*arrowSize
+	topY := shaftY - arrowSize
+	bottomY := shaftY + arrowSize
 	switch orientation {
 	case OrientationNorth:
-		vector.StrokeLine(screen, x+30, y+50, x+30, y+10, 1, arrowColor, false)
-		vector.StrokeLine(screen, x+20, y+20, x+30, y+10, 1, arrowColor, false)
-		vector.StrokeLine(screen, x+40, y+20, x+30, y+10, 1, arrowColor, false)
+		vector.StrokeLine(screen, centerX, shaftEndY, centerX, shaftStartY, 1, arrowColor, false)
+		vector.StrokeLine(screen, leftX, arrowY, centerX, shaftStartY, 1, arrowColor, false)
+		vector.StrokeLine(screen, rightX, arrowY, centerX, shaftStartY, 1, arrowColor, false)
 	case OrientationEast:
-		vector.StrokeLine(screen, x+10, y+30, x+50, y+30, 1, arrowColor, false)
-		vector.StrokeLine(screen, x+40, y+20, x+50, y+30, 1, arrowColor, false)
-		vector.StrokeLine(screen, x+40, y+40, x+50, y+30, 1, arrowColor, false)
+		vector.StrokeLine(screen, shaftLeft, shaftY, shaftRight, shaftY, 1, arrowColor, false)
+		vector.StrokeLine(screen, arrowX, topY, shaftRight, shaftY, 1, arrowColor, false)
+		vector.StrokeLine(screen, arrowX, bottomY, shaftRight, shaftY, 1, arrowColor, false)
 	case OrientationSouth:
-		vector.StrokeLine(screen, x+30, y+10, x+30, y+50, 1, arrowColor, false)
-		vector.StrokeLine(screen, x+20, y+40, x+30, y+50, 1, arrowColor, false)
-		vector.StrokeLine(screen, x+40, y+40, x+30, y+50, 1, arrowColor, false)
+		vector.StrokeLine(screen, centerX, shaftStartY, centerX, shaftEndY, 1, arrowColor, false)
+		vector.StrokeLine(screen, leftX, y+float32(g.cellSize)-2*arrowSize, centerX, shaftEndY, 1, arrowColor, false)
+		vector.StrokeLine(screen, rightX, y+float32(g.cellSize)-2*arrowSize, centerX, shaftEndY, 1, arrowColor, false)
 	case OrientationWest:
-		vector.StrokeLine(screen, x+50, y+30, x+10, y+30, 1, arrowColor, false)
-		vector.StrokeLine(screen, x+20, y+20, x+10, y+30, 1, arrowColor, false)
-		vector.StrokeLine(screen, x+20, y+40, x+10, y+30, 1, arrowColor, false)
+		vector.StrokeLine(screen, shaftRight, shaftY, shaftLeft, shaftY, 1, arrowColor, false)
+		vector.StrokeLine(screen, x+2*arrowSize, topY, shaftLeft, shaftY, 1, arrowColor, false)
+		vector.StrokeLine(screen, x+2*arrowSize, bottomY, shaftLeft, shaftY, 1, arrowColor, false)
 	}
 }
 
@@ -719,38 +748,38 @@ func (g *Game) drawMachines(screen *ebiten.Image) {
 		if row < 1 || row > displayRows || col < 1 || col > displayCols {
 			continue
 		}
-		x := g.gridStartX + (col-1)*(cellSize+gridMargin)
-		y := g.gridStartY + (row-1)*(cellSize+gridMargin)
-		vector.DrawFilledRect(screen, float32(x), float32(y), cellSize, cellSize, ms.Machine.GetColor(), false)
+		x := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin)
+		y := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
+		vector.DrawFilledRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), ms.Machine.GetColor(), false)
 
 		if ms.Machine.GetType() == MachineEnd {
-			ebitenutil.DebugPrintAt(screen, "End", int(x)+15, int(y)+20)
+			ebitenutil.DebugPrintAt(screen, "End", x+g.cellSize/4, y+g.cellSize/3)
 		}
 		g.drawArrow(screen, float32(x), float32(y), ms.Orientation)
 		if ms.Selected {
-			vector.StrokeRect(screen, float32(x), float32(y), cellSize, cellSize, 3, color.RGBA{R: 255, G: 255, B: 0, A: 255}, false)
+			vector.StrokeRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), 3, color.RGBA{R: 255, G: 255, B: 0, A: 255}, false)
 		}
 	}
 
 	// Available machines
 	for i, ms := range g.state.availableMachines {
 		if ms != nil && !ms.BeingDragged && ms.Machine != nil {
-			x := g.gridStartX + i*(cellSize+gridMargin)
+			x := g.gridStartX + i*(g.cellSize+g.gridMargin)
 			y := g.availableY
-			vector.DrawFilledRect(screen, float32(x), float32(y), cellSize, cellSize, ms.Machine.GetColor(), false)
+			vector.DrawFilledRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), ms.Machine.GetColor(), false)
 		}
 	}
 
 	// Rotation buttons
-	counterclockwiseX := g.screenWidth - 2*cellSize - gridMargin
+	counterclockwiseX := g.screenWidth - 2*g.cellSize - g.gridMargin
 	counterclockwiseY := g.availableY
-	vector.DrawFilledCircle(screen, float32(counterclockwiseX+cellSize/2), float32(counterclockwiseY+cellSize/2), cellSize/2, color.RGBA{R: 200, G: 100, B: 100, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, "<-", counterclockwiseX+22, counterclockwiseY+26)
+	vector.DrawFilledCircle(screen, float32(counterclockwiseX+g.cellSize/2), float32(counterclockwiseY+g.cellSize/2), float32(g.cellSize/2), color.RGBA{R: 200, G: 100, B: 100, A: 255}, false)
+	ebitenutil.DebugPrintAt(screen, "<-", counterclockwiseX+g.cellSize/4, counterclockwiseY+g.cellSize/2-3)
 
-	clockwiseX := g.screenWidth - cellSize
+	clockwiseX := g.screenWidth - g.cellSize
 	clockwiseY := g.availableY
-	vector.DrawFilledCircle(screen, float32(clockwiseX+cellSize/2), float32(clockwiseY+cellSize/2), cellSize/2, color.RGBA{R: 100, G: 100, B: 200, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, "->", clockwiseX+22, clockwiseY+26)
+	vector.DrawFilledCircle(screen, float32(clockwiseX+g.cellSize/2), float32(clockwiseY+g.cellSize/2), float32(g.cellSize/2), color.RGBA{R: 100, G: 100, B: 200, A: 255}, false)
+	ebitenutil.DebugPrintAt(screen, "->", clockwiseX+g.cellSize/4, clockwiseY+g.cellSize/2-3)
 }
 
 func (g *Game) drawObjects(screen *ebiten.Image) {
@@ -767,8 +796,8 @@ func (g *Game) drawObjects(screen *ebiten.Image) {
 		if gridY < 1 || gridY > displayRows || gridX < 1 || gridX > displayCols {
 			continue
 		}
-		x := g.gridStartX + (gridX-1)*(cellSize+gridMargin) + cellSize/2
-		y := g.gridStartY + (gridY-1)*(cellSize+gridMargin) + cellSize/2
+		x := g.gridStartX + (gridX-1)*(g.cellSize+g.gridMargin) + g.cellSize/2
+		y := g.gridStartY + (gridY-1)*(g.cellSize+g.gridMargin) + g.cellSize/2
 		vector.DrawFilledCircle(screen, float32(x), float32(y), 10, objColor, false)
 	}
 
@@ -796,8 +825,8 @@ func (g *Game) drawTooltips(screen *ebiten.Image) {
 				col := pos % gridCols
 				row := pos / gridCols
 				if row >= 1 && row <= displayRows && col >= 1 && col <= displayCols {
-					x := g.gridStartX + (col-1)*(cellSize+gridMargin) + cellSize/2
-					y := g.gridStartY + (row-1)*(cellSize+gridMargin)
+					x := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin) + g.cellSize/2
+					y := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
 					g.drawTooltip(screen, selected.Machine.GetDescription(), x, y-10)
 					return
 				}
@@ -806,8 +835,8 @@ func (g *Game) drawTooltips(screen *ebiten.Image) {
 		// Check available machines
 		for i, ms := range g.state.availableMachines {
 			if ms == selected {
-				x := g.gridStartX + i*(cellSize+gridMargin) + cellSize/2
-				y := g.availableY + cellSize
+				x := g.gridStartX + i*(g.cellSize+g.gridMargin) + g.cellSize/2
+				y := g.availableY + g.cellSize
 				g.drawTooltip(screen, selected.Machine.GetDescription(), x, y+10)
 				return
 			}
@@ -816,20 +845,20 @@ func (g *Game) drawTooltips(screen *ebiten.Image) {
 
 	// Check for hover on grid machines
 	if ms := g.getMachineAt(cx, cy); ms != nil {
-		col := (cx - g.gridStartX) / (cellSize + gridMargin)
-		row := (cy - g.gridStartY) / (cellSize + gridMargin)
-		x := g.gridStartX + col*(cellSize+gridMargin) + cellSize/2
-		y := g.gridStartY + row*(cellSize+gridMargin)
+		col := (cx - g.gridStartX) / (g.cellSize + g.gridMargin)
+		row := (cy - g.gridStartY) / (g.cellSize + g.gridMargin)
+		x := g.gridStartX + col*(g.cellSize+g.gridMargin) + g.cellSize/2
+		y := g.gridStartY + row*(g.cellSize+g.gridMargin)
 		g.drawTooltip(screen, ms.Machine.GetDescription(), x, y-10)
 		return
 	}
 
 	// Check for hover on available machines
 	for i, ms := range g.state.availableMachines {
-		x := g.gridStartX + i*(cellSize+gridMargin)
+		x := g.gridStartX + i*(g.cellSize+g.gridMargin)
 		y := g.availableY
-		if cx >= x && cx <= x+cellSize && cy >= y && cy <= y+cellSize {
-			g.drawTooltip(screen, ms.Machine.GetDescription(), x+cellSize/2, y+cellSize+10)
+		if cx >= x && cx <= x+g.cellSize && cy >= y && cy <= y+g.cellSize {
+			g.drawTooltip(screen, ms.Machine.GetDescription(), x+g.cellSize/2, y+g.cellSize+10)
 			return
 		}
 	}
