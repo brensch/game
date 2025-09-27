@@ -511,7 +511,7 @@ func (g *Game) Update() error {
 				if ms != nil && ms.Machine.GetType() == MachineEnd {
 					endMachine = ms
 					endMachine.IsPlaced = true
-					endMachine.RunAdded = g.state.round
+					endMachine.RunAdded = g.state.runsLeft
 					break
 				}
 			}
