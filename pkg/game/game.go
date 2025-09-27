@@ -602,6 +602,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 	}
 
+	// Draw tooltips for hover info
+	g.drawTooltips(screen)
+
 	// Apply CRT effects
 	g.drawScanlines(screen)
 	// Now, draw the vignette overlay on top of everything.
