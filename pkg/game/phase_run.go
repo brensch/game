@@ -82,6 +82,36 @@ func (g *Game) handleRunPhase() {
 			g.state.animationSpeed = 1.0
 			g.state.allChanges = nil
 			g.state.runsLeft--
+			// Move end to random location up to 2 squares away
+			for pos, ms := range g.state.machines {
+				if ms != nil && ms.Machine.GetType() == MachineEnd {
+					currentPos := pos
+					var candidates []int
+					cr := currentPos / gridCols
+					cc := currentPos % gridCols
+					for dr := -2; dr <= 2; dr++ {
+						for dc := -2; dc <= 2; dc++ {
+							if abs(dr)+abs(dc) > 2 || (dr == 0 && dc == 0) {
+								continue
+							}
+							nr := cr + dr
+							nc := cc + dc
+							if nr >= 1 && nr <= displayRows && nc >= 1 && nc <= displayCols {
+								npos := nr*gridCols + nc
+								if g.state.machines[npos] == nil {
+									candidates = append(candidates, npos)
+								}
+							}
+						}
+					}
+					if len(candidates) > 0 {
+						newPos := candidates[rand.Intn(len(candidates))]
+						g.state.machines[newPos] = ms
+						g.state.machines[currentPos] = nil
+					}
+					break
+				}
+			}
 			// Add run score to total
 			g.state.totalScore += g.state.roundScore * g.state.multiplier
 			g.state.roundScore = 0
@@ -89,36 +119,6 @@ func (g *Game) handleRunPhase() {
 			if g.state.runsLeft == 0 {
 				if g.state.totalScore >= g.state.targetScore {
 					g.state.phase = PhaseRoundEnd
-					// Move end to random location up to 2 squares away
-					for pos, ms := range g.state.machines {
-						if ms != nil && ms.Machine.GetType() == MachineEnd {
-							currentPos := pos
-							var candidates []int
-							cr := currentPos / gridCols
-							cc := currentPos % gridCols
-							for dr := -2; dr <= 2; dr++ {
-								for dc := -2; dc <= 2; dc++ {
-									if abs(dr)+abs(dc) > 2 || (dr == 0 && dc == 0) {
-										continue
-									}
-									nr := cr + dr
-									nc := cc + dc
-									if nr >= 1 && nr <= displayRows && nc >= 1 && nc <= displayCols {
-										npos := nr*gridCols + nc
-										if g.state.machines[npos] == nil {
-											candidates = append(candidates, npos)
-										}
-									}
-								}
-							}
-							if len(candidates) > 0 {
-								newPos := candidates[rand.Intn(len(candidates))]
-								g.state.machines[newPos] = ms
-								g.state.machines[currentPos] = nil
-							}
-							break
-						}
-					}
 				} else {
 					g.state.gameOver = true
 					g.state.phase = PhaseGameOver
