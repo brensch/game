@@ -36,11 +36,9 @@ func (m *Miner) Process(position int, history [][]*Object, tick int, orientation
 
 		// fmt.Printf("processed miner. tick: %d, nextPos: %d, position: %d\n", tick, nextPos, position)
 		return []*Change{{
-			StartObject: &Object{GridPosition: position, Type: objType},
-			EndObject:   &Object{GridPosition: nextPos, Type: objType},
-			Score:       0,
-			MultAdd:     0,
-			MultMult:    1,
+			StartObject: &Object{GridPosition: position, Type: objType, Score: &Score{Value: 1, MultAdd: 0, MultMult: 1}},
+			EndObject:   &Object{GridPosition: nextPos, Type: objType, Score: &Score{Value: 1, MultAdd: 0, MultMult: 1}},
+			Score:       nil,
 		}}
 	}
 	return nil

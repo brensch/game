@@ -25,9 +25,7 @@ func (e *End) Process(position int, history [][]*Object, round int, orientation 
 			return []*Change{{
 				StartObject: obj,
 				EndObject:   nil,
-				Score:       1,
-				MultAdd:     0,
-				MultMult:    1,
+				Score:       obj.Score,
 			}}
 		}
 	}

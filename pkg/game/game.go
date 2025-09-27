@@ -41,6 +41,7 @@ const (
 type Object struct {
 	GridPosition int
 	Type         ObjectType
+	Score        *Score
 	Effects      []EffectInterface
 }
 
@@ -98,6 +99,7 @@ type GameState struct {
 	runsLeft          int
 	baseScore         int
 	multiplier        int
+	multMult          int
 	machines          []*MachineState
 	availableMachines []*MachineState
 	objects           []*Object
@@ -233,6 +235,7 @@ func NewGame(width, height int) *Game {
 		animationSpeed: 1.0,
 		buttons:        make(map[string]*Button),
 		multiplier:     1,
+		multMult:       1,
 		roundScore:     0,
 		totalScore:     0,
 		targetScore:    10, // round * 10

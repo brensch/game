@@ -82,11 +82,16 @@ type MachineInterface interface {
 	GetName() string
 }
 
+// Score represents the scoring components.
+type Score struct {
+	Value    int
+	MultAdd  int
+	MultMult int
+}
+
 // Change represents a change to objects.
 type Change struct {
 	StartObject *Object
 	EndObject   *Object
-	Score       int
-	MultAdd     int
-	MultMult    int
+	Score       *Score
 }

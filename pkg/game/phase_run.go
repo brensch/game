@@ -37,9 +37,11 @@ func (g *Game) handleRunPhase() {
 			g.state.animations = []*Animation{}
 			// Accumulate scores
 			for _, ch := range tickChanges {
-				g.state.roundScore += ch.Score
-				g.state.multiplier += ch.MultAdd
-				g.state.multiplier *= ch.MultMult
+				if ch.Score != nil {
+					g.state.roundScore += ch.Score.Value
+					g.state.multiplier += ch.Score.MultAdd
+					g.state.multiplier *= ch.Score.MultMult
+				}
 			}
 			for _, ch := range tickChanges {
 				if ch.StartObject == nil || ch.EndObject == nil {
