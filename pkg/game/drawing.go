@@ -24,7 +24,7 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Total Score: %d", g.state.totalScore), 20, g.topPanelY+10)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Money: $%d", g.state.money), 20, g.topPanelY+30)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round Target: %d", g.state.targetScore), 200, g.topPanelY+10)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Run: %d/%d", g.state.run, g.state.maxRuns), 200, g.topPanelY+30)
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Runs Left: %d", g.state.runsLeft), 200, g.topPanelY+30)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round: %d", g.state.round), 200, g.topPanelY+50)
 
 	// Bottom Panel

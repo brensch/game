@@ -76,79 +76,53 @@ func (g *Game) handleRunPhase() {
 		g.state.endRunDelay--
 		if g.state.endRunDelay == 0 {
 			// End the run
-			g.state.phase = PhaseBuild
 			g.state.animationTick = 0
 			g.state.animationSpeed = 1.0
 			g.state.allChanges = nil
-			g.state.run++
+			g.state.runsLeft--
 			// Add run score to total
 			g.state.totalScore += g.state.roundScore * g.state.multiplier
 			g.state.roundScore = 0
 			g.state.multiplier = 1
-			if g.state.run > g.state.maxRuns {
+			if g.state.runsLeft == 0 {
 				if g.state.totalScore >= g.state.targetScore {
-					g.state.run = 1
-					g.state.round++
-					g.state.targetScore = g.state.round * g.state.round * 10
-					g.state.money += g.state.round * 10
-					// Reset machines: keep only End, clear others
-					var endMachine *MachineState
-					for _, ms := range g.state.machines {
+					g.state.phase = PhaseRoundEnd
+					// Move end to random location up to 2 squares away
+					for pos, ms := range g.state.machines {
 						if ms != nil && ms.Machine.GetType() == MachineEnd {
-							endMachine = ms
-							endMachine.IsPlaced = true
-							endMachine.RunAdded = g.state.run
+							currentPos := pos
+							var candidates []int
+							cr := currentPos / gridCols
+							cc := currentPos % gridCols
+							for dr := -2; dr <= 2; dr++ {
+								for dc := -2; dc <= 2; dc++ {
+									if abs(dr)+abs(dc) > 2 || (dr == 0 && dc == 0) {
+										continue
+									}
+									nr := cr + dr
+									nc := cc + dc
+									if nr >= 1 && nr <= displayRows && nc >= 1 && nc <= displayCols {
+										npos := nr*gridCols + nc
+										if g.state.machines[npos] == nil {
+											candidates = append(candidates, npos)
+										}
+									}
+								}
+							}
+							if len(candidates) > 0 {
+								newPos := candidates[rand.Intn(len(candidates))]
+								g.state.machines[newPos] = ms
+								g.state.machines[currentPos] = nil
+							}
 							break
 						}
-					}
-					g.state.machines = make([]*MachineState, gridCols*gridRows)
-					if endMachine != nil {
-						// Place End at a random position
-						endRow := 1 + rand.Intn(displayRows)
-						endCol := 1 + rand.Intn(displayCols)
-						endPos := endRow*gridCols + endCol
-						g.state.machines[endPos] = endMachine
-					}
-					// Reset available machines
-					g.state.availableMachines = []*MachineState{
-						{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-						{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-						{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
 					}
 				} else {
 					g.state.gameOver = true
 					g.state.phase = PhaseGameOver
 				}
-			}
-			// Move end to random location up to 2 squares away
-			for pos, ms := range g.state.machines {
-				if ms != nil && ms.Machine.GetType() == MachineEnd {
-					currentPos := pos
-					var candidates []int
-					cr := currentPos / gridCols
-					cc := currentPos % gridCols
-					for dr := -2; dr <= 2; dr++ {
-						for dc := -2; dc <= 2; dc++ {
-							if abs(dr)+abs(dc) > 2 || (dr == 0 && dc == 0) {
-								continue
-							}
-							nr := cr + dr
-							nc := cc + dc
-							if nr >= 1 && nr <= displayRows && nc >= 1 && nc <= displayCols {
-								npos := nr*gridCols + nc
-								if g.state.machines[npos] == nil {
-									candidates = append(candidates, npos)
-								}
-							}
-						}
-					}
-					if len(candidates) > 0 {
-						newPos := candidates[rand.Intn(len(candidates))]
-						g.state.machines[newPos] = ms
-						g.state.machines[currentPos] = nil
-					}
-					break
-				}
+			} else {
+				g.state.phase = PhaseBuild
 			}
 		}
 		return
