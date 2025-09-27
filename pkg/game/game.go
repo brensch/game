@@ -72,6 +72,7 @@ const (
 	PhaseRun
 	PhaseRoundEnd
 	PhaseGameOver
+	PhaseInfo
 )
 
 // Animation represents a moving object animation.
@@ -111,7 +112,7 @@ type GameState struct {
 	targetScore       int
 	gameOver          bool
 	endRunDelay       int
-	showInfoPopup     bool
+	previousPhase     GamePhase
 }
 
 // ButtonState represents the state of a button for a phase.
@@ -237,7 +238,7 @@ func NewGame(width, height int) *Game {
 		targetScore:    10, // round * 10
 		gameOver:       false,
 		endRunDelay:    0,
-		showInfoPopup:  false,
+		previousPhase:  PhaseBuild,
 	}
 
 	g := &Game{state: state}
@@ -276,7 +277,6 @@ func (g *Game) initButtons() {
 	restartBtn.States[PhaseBuild] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	restartBtn.States[PhaseRun] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	restartBtn.States[PhaseRoundEnd] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
-	restartBtn.States[PhaseGameOver] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
 	restartBtn.Font = g.font
 	g.state.buttons["restart"] = restartBtn // Sell button
 	sellBtn := &Button{}
@@ -284,8 +284,6 @@ func (g *Game) initButtons() {
 	sellBtn.Color = color.RGBA{R: 255, G: 100, B: 100, A: 255} // Red
 	sellBtn.States[PhaseBuild] = ButtonState{Text: "Sell", Color: color.RGBA{R: 255, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	sellBtn.States[PhaseRun] = ButtonState{Text: "Sell", Color: color.RGBA{R: 255, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
-	sellBtn.States[PhaseRoundEnd] = ButtonState{Text: "Sell", Color: color.RGBA{R: 255, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
-	sellBtn.States[PhaseGameOver] = ButtonState{Text: "Sell", Color: color.RGBA{R: 255, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
 	sellBtn.Font = g.font
 	g.state.buttons["sell"] = sellBtn
 
@@ -295,8 +293,6 @@ func (g *Game) initButtons() {
 	runBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
 	runBtn.States[PhaseBuild] = ButtonState{Text: "Start Run", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
 	runBtn.States[PhaseRun] = ButtonState{Text: "Running", Color: color.RGBA{R: 200, G: 200, B: 100, A: 255}, Disabled: true, Visible: true}
-	runBtn.States[PhaseRoundEnd] = ButtonState{Text: "Start Run", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: false}
-	runBtn.States[PhaseGameOver] = ButtonState{Text: "Start Run", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: false}
 	runBtn.Font = g.font
 	g.state.buttons["run"] = runBtn
 
@@ -309,8 +305,6 @@ func (g *Game) initButtons() {
 	rotateLeftBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
 	rotateLeftBtn.States[PhaseBuild] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	rotateLeftBtn.States[PhaseRun] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
-	rotateLeftBtn.States[PhaseRoundEnd] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
-	rotateLeftBtn.States[PhaseGameOver] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
 	rotateLeftBtn.Font = g.font
 	rotateLeftBtn.CustomRender = func(screen *ebiten.Image, b *Button, phase GamePhase) {
 		g.drawRotateArrow(screen, b.X, b.Y, b.Width, b.Height, true)
@@ -325,8 +319,6 @@ func (g *Game) initButtons() {
 	rotateRightBtn.Color = color.RGBA{R: 100, G: 100, B: 200, A: 255} // Blue
 	rotateRightBtn.States[PhaseBuild] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
 	rotateRightBtn.States[PhaseRun] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
-	rotateRightBtn.States[PhaseRoundEnd] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
-	rotateRightBtn.States[PhaseGameOver] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
 	rotateRightBtn.Font = g.font
 	rotateRightBtn.CustomRender = func(screen *ebiten.Image, b *Button, phase GamePhase) {
 		g.drawRotateArrow(screen, b.X, b.Y, b.Width, b.Height, false)
@@ -337,10 +329,7 @@ func (g *Game) initButtons() {
 	nextRoundBtn := &Button{}
 	nextRoundBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Next Round")
 	nextRoundBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
-	nextRoundBtn.States[PhaseBuild] = ButtonState{Text: "Next Round", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: false}
-	nextRoundBtn.States[PhaseRun] = ButtonState{Text: "Next Round", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: false}
 	nextRoundBtn.States[PhaseRoundEnd] = ButtonState{Text: "Next Round", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
-	nextRoundBtn.States[PhaseGameOver] = ButtonState{Text: "Next Round", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: false}
 	nextRoundBtn.Font = g.font
 	g.state.buttons["next_round"] = nextRoundBtn
 
@@ -349,18 +338,13 @@ func (g *Game) initButtons() {
 	infoBtn.Init(10, infoBarY+45, 80, 30, "Info")
 	infoBtn.Color = color.RGBA{R: 100, G: 100, B: 200, A: 255} // Blue
 	infoBtn.States[PhaseBuild] = ButtonState{Text: "Info", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
-	infoBtn.States[PhaseRun] = ButtonState{Text: "Info", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
 	infoBtn.States[PhaseRoundEnd] = ButtonState{Text: "Info", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
-	infoBtn.States[PhaseGameOver] = ButtonState{Text: "Info", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
 	infoBtn.Font = g.font
 	g.state.buttons["info"] = infoBtn // Close info button
 	closeInfoBtn := &Button{}
 	closeInfoBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Close")
 	closeInfoBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
-	closeInfoBtn.States[PhaseBuild] = ButtonState{Text: "Close", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
-	closeInfoBtn.States[PhaseRun] = ButtonState{Text: "Close", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
-	closeInfoBtn.States[PhaseRoundEnd] = ButtonState{Text: "Close", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
-	closeInfoBtn.States[PhaseGameOver] = ButtonState{Text: "Close", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
+	closeInfoBtn.States[PhaseInfo] = ButtonState{Text: "Close", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
 	closeInfoBtn.Font = g.font
 	g.state.buttons["close_info"] = closeInfoBtn
 
@@ -368,8 +352,6 @@ func (g *Game) initButtons() {
 	popupRestartBtn := &Button{}
 	popupRestartBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Restart")
 	popupRestartBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
-	popupRestartBtn.States[PhaseBuild] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
-	popupRestartBtn.States[PhaseRun] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
 	popupRestartBtn.States[PhaseGameOver] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	popupRestartBtn.Font = g.font
 	g.state.buttons["popup_restart"] = popupRestartBtn
@@ -483,6 +465,7 @@ func (g *Game) Update() error {
 			targetScore:    10,
 			gameOver:       false,
 			endRunDelay:    0,
+			previousPhase:  PhaseBuild,
 		}
 		g.initButtons()
 		// Place random End machine
@@ -547,11 +530,14 @@ func (g *Game) Update() error {
 	}
 
 	if g.state.buttons["info"].IsClicked(g.lastInput, g.state.phase) {
-		g.state.showInfoPopup = true
+		if g.state.phase == PhaseBuild || g.state.phase == PhaseRoundEnd {
+			g.state.previousPhase = g.state.phase
+			g.state.phase = PhaseInfo
+		}
 	}
 
 	if g.state.buttons["close_info"].IsClicked(g.lastInput, g.state.phase) {
-		g.state.showInfoPopup = false
+		g.state.phase = g.state.previousPhase
 	}
 
 	if g.state.phase == PhaseGameOver && g.state.buttons["popup_restart"].IsClicked(g.lastInput, g.state.phase) {
@@ -573,6 +559,7 @@ func (g *Game) Update() error {
 			targetScore:    10,
 			gameOver:       false,
 			endRunDelay:    0,
+			previousPhase:  PhaseBuild,
 		}
 		g.initButtons()
 		// Place random End machine
@@ -602,6 +589,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	case PhaseGameOver:
 		// Draw a simple game over screen
 		g.drawRoundEndLayout(screen) // or something
+	case PhaseInfo:
+		// Draw the layout of the previous phase
+		switch g.state.previousPhase {
+		case PhaseBuild:
+			g.drawDragLayout(screen)
+		case PhaseRoundEnd:
+			g.drawRoundEndLayout(screen)
+		}
 	}
 
 	// Apply CRT effects
@@ -626,7 +621,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	// Draw info popup
-	if g.state.showInfoPopup {
+	if g.state.phase == PhaseInfo {
 		popupX := g.screenWidth/2 - 150
 		popupY := g.height/2 - 100
 		popupW := 300
