@@ -52,8 +52,4 @@ func (g *Game) drawRunLayout(screen *ebiten.Image) {
 	// Draw info bar at bottom
 	g.drawInfoBar(screen, g.bottomY+g.bottomHeight)
 
-	// Render all buttons
-	for _, button := range g.state.buttons {
-		button.Render(screen, g.state.phase)
-	}
 }

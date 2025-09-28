@@ -3,6 +3,85 @@ package game
 func (g *Game) handleDragAndDrop() {
 	cx, cy := g.lastInput.X, g.lastInput.Y
 
+	selected := g.getSelectedMachine()
+	if selected != g.lastSelected {
+		// Update button visibility and position
+		if selected != nil && selected.IsPlaced && selected.RunAdded == g.state.runsLeft && selected.Machine.GetType() != MachineEnd {
+			state := g.state.buttons["sell"].States[PhaseBuild]
+			state.Visible = true
+			g.state.buttons["sell"].States[PhaseBuild] = state
+		} else {
+			state := g.state.buttons["sell"].States[PhaseBuild]
+			state.Visible = false
+			g.state.buttons["sell"].States[PhaseBuild] = state
+		}
+		hasSelectedInventory := false
+		for _, sel := range g.state.inventorySelected {
+			if sel {
+				hasSelectedInventory = true
+				break
+			}
+		}
+		if hasSelectedInventory && g.state.restocksLeft > 0 {
+			state := g.state.buttons["restock"].States[PhaseBuild]
+			state.Visible = true
+			g.state.buttons["restock"].States[PhaseBuild] = state
+		} else {
+			state := g.state.buttons["restock"].States[PhaseBuild]
+			state.Visible = false
+			g.state.buttons["restock"].States[PhaseBuild] = state
+		}
+		// Position buttons below selected machine
+		selectedPos := -1
+		if selected != nil {
+			for pos, ms := range g.state.machines {
+				if ms == selected {
+					selectedPos = pos
+					break
+				}
+			}
+		}
+		if selectedPos != -1 {
+			col := selectedPos%gridCols - 1
+			row := selectedPos/gridCols - 1
+			if row >= 0 && row < displayRows && col >= 0 && col < displayCols {
+				buttonY := g.gridStartY + (row+1)*(g.cellSize+g.gridMargin) + g.gridMargin
+				buttonX := g.gridStartX + col*(g.cellSize+g.gridMargin) + g.cellSize/2
+				// Rotate buttons
+				g.state.buttons["rotate_left"].X = buttonX - 45
+				g.state.buttons["rotate_left"].Y = buttonY
+				g.state.buttons["rotate_right"].X = buttonX + 5
+				g.state.buttons["rotate_right"].Y = buttonY
+				state := g.state.buttons["rotate_left"].States[PhaseBuild]
+				state.Visible = true
+				g.state.buttons["rotate_left"].States[PhaseBuild] = state
+				state = g.state.buttons["rotate_right"].States[PhaseBuild]
+				state.Visible = true
+				g.state.buttons["rotate_right"].States[PhaseBuild] = state
+				// Sell button
+				g.state.buttons["sell"].X = buttonX - 40
+				g.state.buttons["sell"].Y = buttonY + 35
+			} else {
+				// Hide
+				state := g.state.buttons["rotate_left"].States[PhaseBuild]
+				state.Visible = false
+				g.state.buttons["rotate_left"].States[PhaseBuild] = state
+				state = g.state.buttons["rotate_right"].States[PhaseBuild]
+				state.Visible = false
+				g.state.buttons["rotate_right"].States[PhaseBuild] = state
+			}
+		} else {
+			// Hide rotate
+			state := g.state.buttons["rotate_left"].States[PhaseBuild]
+			state.Visible = false
+			g.state.buttons["rotate_left"].States[PhaseBuild] = state
+			state = g.state.buttons["rotate_right"].States[PhaseBuild]
+			state.Visible = false
+			g.state.buttons["rotate_right"].States[PhaseBuild] = state
+		}
+		g.lastSelected = selected
+	}
+
 	if g.lastInput.JustPressed {
 
 		// Check rotation buttons first

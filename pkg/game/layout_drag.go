@@ -72,36 +72,4 @@ func (g *Game) drawDragLayout(screen *ebiten.Image) {
 	// Draw info bar at bottom
 	g.drawInfoBar(screen, g.bottomY+g.bottomHeight)
 
-	// Update button visibility
-	selected := g.getSelectedMachine()
-	if selected != nil && selected.IsPlaced && selected.RunAdded == g.state.runsLeft && selected.Machine.GetType() != MachineEnd {
-		state := g.state.buttons["sell"].States[PhaseBuild]
-		state.Visible = true
-		g.state.buttons["sell"].States[PhaseBuild] = state
-	} else {
-		state := g.state.buttons["sell"].States[PhaseBuild]
-		state.Visible = false
-		g.state.buttons["sell"].States[PhaseBuild] = state
-	}
-	hasSelectedInventory := false
-	for _, sel := range g.state.inventorySelected {
-		if sel {
-			hasSelectedInventory = true
-			break
-		}
-	}
-	if hasSelectedInventory && g.state.restocksLeft > 0 {
-		state := g.state.buttons["restock"].States[PhaseBuild]
-		state.Visible = true
-		g.state.buttons["restock"].States[PhaseBuild] = state
-	} else {
-		state := g.state.buttons["restock"].States[PhaseBuild]
-		state.Visible = false
-		g.state.buttons["restock"].States[PhaseBuild] = state
-	}
-
-	// Render all buttons
-	for _, button := range g.state.buttons {
-		button.Render(screen, g.state.phase)
-	}
 }

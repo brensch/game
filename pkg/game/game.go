@@ -192,6 +192,7 @@ type Game struct {
 	topPanelY, foremanY, gridStartY, availableY, bottomY                        int
 	screenWidth, gridStartX                                                     int
 	cellSize, gridMargin                                                        int
+	lastSelected                                                               *MachineState
 
 	vignetteImage *ebiten.Image
 	font          font.Face
@@ -317,7 +318,7 @@ func (g *Game) initButtons() {
 	counterclockwiseY := g.availableY + g.cellSize + g.gridMargin
 	rotateLeftBtn.Init(counterclockwiseX, counterclockwiseY, g.cellSize, g.cellSize, "<-")
 	rotateLeftBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
-	rotateLeftBtn.States[PhaseBuild] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
+	rotateLeftBtn.States[PhaseBuild] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
 	rotateLeftBtn.States[PhaseRun] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	rotateLeftBtn.Font = g.font
 	rotateLeftBtn.CustomRender = func(screen *ebiten.Image, b *Button, phase GamePhase) {
@@ -331,7 +332,7 @@ func (g *Game) initButtons() {
 	clockwiseY := g.availableY + g.cellSize + g.gridMargin
 	rotateRightBtn.Init(clockwiseX, clockwiseY, g.cellSize, g.cellSize, "->")
 	rotateRightBtn.Color = color.RGBA{R: 100, G: 100, B: 200, A: 255} // Blue
-	rotateRightBtn.States[PhaseBuild] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
+	rotateRightBtn.States[PhaseBuild] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
 	rotateRightBtn.States[PhaseRun] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
 	rotateRightBtn.Font = g.font
 	rotateRightBtn.CustomRender = func(screen *ebiten.Image, b *Button, phase GamePhase) {
@@ -629,6 +630,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	// Draw tooltips for hover info
 	g.drawTooltips(screen)
+
+	// Render all buttons
+	for _, button := range g.state.buttons {
+		button.Render(screen, g.state.phase)
+	}
 
 	// Apply CRT effects
 	g.drawScanlines(screen)

@@ -14,8 +14,4 @@ func (g *Game) drawRoundEndLayout(screen *ebiten.Image) {
 	// Draw info bar at bottom
 	g.drawInfoBar(screen, g.height-g.topPanelHeight)
 
-	// Render all buttons
-	for _, button := range g.state.buttons {
-		button.Render(screen, g.state.phase)
-	}
 }
