@@ -53,19 +53,29 @@ func (g *Game) handleDragAndDrop() {
 			return
 		}
 
-		// Deselect all
+		// Check sell button
+		if g.state.buttons["sell"].IsClicked(g.lastInput, g.state.phase) {
+			selected := g.getSelectedMachine()
+			if selected != nil && selected.IsPlaced && selected.RunAdded == g.state.runsLeft && selected.Machine.GetType() != MachineEnd {
+				g.state.money += selected.Machine.GetCost()
+				// Remove from grid
+				for pos, ms := range g.state.machines {
+					if ms == selected {
+						g.state.machines[pos] = nil
+						break
+					}
+				}
+				// Deselect
+				selected.Selected = false
+			}
+			return
+		}
+
+		// Deselect all machines
 		for _, m := range g.state.machines {
 			if m != nil {
 				m.Selected = false
 			}
-		}
-		for _, m := range g.state.inventory {
-			if m != nil {
-				m.Selected = false
-			}
-		}
-		for i := range g.state.inventorySelected {
-			g.state.inventorySelected[i] = false
 		}
 
 		// Check if picking from available
@@ -178,25 +188,6 @@ func (g *Game) handleDragAndDrop() {
 				}
 				// Select the placed one
 				placedMS.Selected = true
-			} else {
-				// Check if over sell area
-				sellX := 10
-				sellY := g.bottomY + 10
-				sellWidth := 120
-				sellHeight := g.bottomHeight - 20
-				if cx >= sellX-10 && cx <= sellX+sellWidth+10 && cy >= sellY-10 && cy <= sellY+sellHeight+10 {
-					if dragging.IsPlaced && dragging.RunAdded == g.state.runsLeft {
-						// Sell the machine
-						g.state.money += dragging.Machine.GetCost()
-						// Remove from grid
-						for pos, ms := range g.state.machines {
-							if ms == dragging {
-								g.state.machines[pos] = nil
-								break
-							}
-						}
-					}
-				}
 			}
 			dragging.BeingDragged = false
 		}

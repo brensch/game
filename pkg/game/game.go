@@ -299,14 +299,7 @@ func (g *Game) initButtons() {
 	restartBtn.States[PhaseRun] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	restartBtn.States[PhaseRoundEnd] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	restartBtn.Font = g.font
-	g.state.buttons["restart"] = restartBtn // Sell button
-	sellBtn := &Button{}
-	sellBtn.Init(10, g.bottomY+10, buttonWidth, g.bottomHeight-20, "Sell")
-	sellBtn.Color = color.RGBA{R: 255, G: 100, B: 100, A: 255} // Red
-	sellBtn.States[PhaseBuild] = ButtonState{Text: "Sell", Color: color.RGBA{R: 255, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
-	sellBtn.States[PhaseRun] = ButtonState{Text: "Sell", Color: color.RGBA{R: 255, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
-	sellBtn.Font = g.font
-	g.state.buttons["sell"] = sellBtn
+	g.state.buttons["restart"] = restartBtn
 
 	// Start Run button
 	runBtn := &Button{}
@@ -371,13 +364,21 @@ func (g *Game) initButtons() {
 
 	// Restock button
 	restockBtn := &Button{}
-	restockBtn.Init(10, infoBarY+80, 80, 30, "Restock")
+	restockX := gridRightEdge - 2*g.cellSize - g.gridMargin - 80 - g.gridMargin - 80 - g.gridMargin
+	restockBtn.Init(restockX, g.availableY+g.cellSize+g.gridMargin, 80, 30, "Restock")
 	restockBtn.Color = color.RGBA{R: 200, G: 100, B: 200, A: 255} // Purple
-	restockBtn.States[PhaseBuild] = ButtonState{Text: "Restock", Color: color.RGBA{R: 200, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
+	restockBtn.States[PhaseBuild] = ButtonState{Text: "Restock", Color: color.RGBA{R: 200, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
 	restockBtn.Font = g.font
 	g.state.buttons["restock"] = restockBtn
 
-	// Popup restart button (for game over)
+	// Sell button
+	sellBtn := &Button{}
+	sellX := gridRightEdge - 2*g.cellSize - g.gridMargin - 80 - g.gridMargin
+	sellBtn.Init(sellX, g.availableY+g.cellSize+g.gridMargin, 80, 30, "Sell")
+	sellBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
+	sellBtn.States[PhaseBuild] = ButtonState{Text: "Sell", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
+	sellBtn.Font = g.font
+	g.state.buttons["sell"] = sellBtn
 	popupRestartBtn := &Button{}
 	popupRestartBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Restart")
 	popupRestartBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
