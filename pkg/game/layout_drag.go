@@ -14,10 +14,12 @@ func (g *Game) drawDragLayout(screen *ebiten.Image) {
 	g.drawFactoryFloor(screen)
 
 	// Draw available machines
-	for i, ms := range g.state.availableMachines {
+	for i, ms := range g.state.inventory {
 		if ms != nil && !ms.BeingDragged && ms.Machine != nil {
-			x := g.gridStartX + i*(g.cellSize+g.gridMargin)
-			y := g.availableY
+			row := i / 7
+			col := i % 7
+			x := g.gridStartX + col*(g.cellSize+g.gridMargin)
+			y := g.availableY + row*(g.cellSize+g.gridMargin)
 			vector.DrawFilledRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), ms.Machine.GetColor(), false)
 		}
 	}

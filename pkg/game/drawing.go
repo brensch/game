@@ -153,11 +153,16 @@ func (g *Game) drawMachines(screen *ebiten.Image) {
 	}
 
 	// Available machines
-	for i, ms := range g.state.availableMachines {
+	for i, ms := range g.state.inventory {
 		if ms != nil && !ms.BeingDragged && ms.Machine != nil {
-			x := g.gridStartX + i*(g.cellSize+g.gridMargin)
-			y := g.availableY
+			row := i / 7
+			col := i % 7
+			x := g.gridStartX + col*(g.cellSize+g.gridMargin)
+			y := g.availableY + row*(g.cellSize+g.gridMargin)
 			vector.DrawFilledRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), ms.Machine.GetColor(), false)
+			if g.state.inventorySelected[i] {
+				vector.StrokeRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), 3, color.RGBA{R: 255, G: 255, B: 0, A: 255}, false)
+			}
 		}
 	}
 
@@ -217,7 +222,7 @@ func (g *Game) drawTooltips(screen *ebiten.Image) {
 			}
 		}
 		// Check available machines
-		for i, ms := range g.state.availableMachines {
+		for i, ms := range g.state.inventory {
 			if ms == selected {
 				x := g.gridStartX + i*(g.cellSize+g.gridMargin) + g.cellSize/2
 				y := g.availableY + g.cellSize
@@ -238,9 +243,11 @@ func (g *Game) drawTooltips(screen *ebiten.Image) {
 	}
 
 	// Check for hover on available machines
-	for i, ms := range g.state.availableMachines {
-		x := g.gridStartX + i*(g.cellSize+g.gridMargin)
-		y := g.availableY
+	for i, ms := range g.state.inventory {
+		row := i / 7
+		col := i % 7
+		x := g.gridStartX + col*(g.cellSize+g.gridMargin)
+		y := g.availableY + row*(g.cellSize+g.gridMargin)
 		if cx >= x && cx <= x+g.cellSize && cy >= y && cy <= y+g.cellSize {
 			g.drawTooltip(screen, ms.Machine.GetName(), ms.Machine.GetDescription(), ms.Machine.GetCost(), x+g.cellSize/2, y+g.cellSize+10)
 			return

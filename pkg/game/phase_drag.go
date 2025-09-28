@@ -21,24 +21,62 @@ func (g *Game) handleDragAndDrop() {
 			return
 		}
 
+		// Check restock button
+		if g.state.buttons["restock"].IsClicked(g.lastInput, g.state.phase) {
+			if g.state.restocksLeft > 0 {
+				selectedIndices := []int{}
+				for i, sel := range g.state.inventorySelected {
+					if sel {
+						selectedIndices = append(selectedIndices, i)
+					}
+				}
+				num := len(selectedIndices)
+				if num > 0 {
+					// Discard selected
+					newInventory := []*MachineState{}
+					newSelected := []bool{}
+					for i, ms := range g.state.inventory {
+						if !g.state.inventorySelected[i] {
+							newInventory = append(newInventory, ms)
+							newSelected = append(newSelected, false)
+						}
+					}
+					g.state.inventory = newInventory
+					g.state.inventorySelected = newSelected
+					// Deal num new
+					newMachines := dealMachines(g.state.catalogue, num, g.state.runsLeft)
+					g.state.inventory = append(g.state.inventory, newMachines...)
+					g.state.inventorySelected = append(g.state.inventorySelected, make([]bool, num)...)
+					g.state.restocksLeft--
+				}
+			}
+			return
+		}
+
 		// Deselect all
 		for _, m := range g.state.machines {
 			if m != nil {
 				m.Selected = false
 			}
 		}
-		for _, m := range g.state.availableMachines {
+		for _, m := range g.state.inventory {
 			if m != nil {
 				m.Selected = false
 			}
 		}
+		for i := range g.state.inventorySelected {
+			g.state.inventorySelected[i] = false
+		}
 
 		// Check if picking from available
-		for i, ms := range g.state.availableMachines {
-			x := g.gridStartX + i*(g.cellSize+g.gridMargin)
-			y := g.availableY
+		for i, ms := range g.state.inventory {
+			row := i / 7
+			col := i % 7
+			x := g.gridStartX + col*(g.cellSize+g.gridMargin)
+			y := g.availableY + row*(g.cellSize+g.gridMargin)
 			if cx >= x-10 && cx <= x+g.cellSize+10 && cy >= y-10 && cy <= y+g.cellSize+10 {
-				ms.Selected = true
+				g.state.inventorySelected[i] = !g.state.inventorySelected[i]
+				ms.Selected = g.state.inventorySelected[i]
 				break
 			}
 		}
@@ -104,6 +142,14 @@ func (g *Game) handleDragAndDrop() {
 						position := (gridY+1)*gridCols + (gridX + 1)
 						g.state.machines[position] = newMS
 						placedMS = newMS
+						// Remove from inventory
+						for i, ms := range g.state.inventory {
+							if ms == dragging {
+								g.state.inventory = append(g.state.inventory[:i], g.state.inventory[i+1:]...)
+								g.state.inventorySelected = append(g.state.inventorySelected[:i], g.state.inventorySelected[i+1:]...)
+								break
+							}
+						}
 					} else {
 						// Not enough money, don't place
 						dragging.BeingDragged = false
@@ -125,7 +171,7 @@ func (g *Game) handleDragAndDrop() {
 						m.Selected = false
 					}
 				}
-				for _, m := range g.state.availableMachines {
+				for _, m := range g.state.inventory {
 					if m != nil {
 						m.Selected = false
 					}

@@ -116,6 +116,14 @@ func (g *Game) handleRunPhase() {
 			g.state.totalScore += g.state.roundScore * g.state.multiplier
 			g.state.roundScore = 0
 			g.state.multiplier = 1
+			if g.state.runsLeft > 0 {
+				numToDeal := g.state.inventorySize - len(g.state.inventory)
+				if numToDeal > 0 {
+					newMachines := dealMachines(g.state.catalogue, numToDeal, g.state.runsLeft)
+					g.state.inventory = append(g.state.inventory, newMachines...)
+					g.state.inventorySelected = append(g.state.inventorySelected, make([]bool, numToDeal)...)
+				}
+			}
 			if g.state.runsLeft == 0 {
 				if g.state.totalScore >= g.state.targetScore {
 					g.state.phase = PhaseRoundEnd

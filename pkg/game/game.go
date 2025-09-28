@@ -101,7 +101,11 @@ type GameState struct {
 	multiplier        int
 	multMult          int
 	machines          []*MachineState
-	availableMachines []*MachineState
+	inventory         []*MachineState
+	catalogue         []MachineInterface
+	inventorySize     int
+	restocksLeft      int
+	inventorySelected []bool
 	objects           []*Object
 	round             int
 	animations        []*Animation
@@ -200,7 +204,7 @@ func (g *Game) getSelectedMachine() *MachineState {
 			return ms
 		}
 	}
-	for _, ms := range g.state.availableMachines {
+	for _, ms := range g.state.inventory {
 		if ms != nil && ms.Selected {
 			return ms
 		}
@@ -214,12 +218,22 @@ func (g *Game) getDraggingMachine() *MachineState {
 			return ms
 		}
 	}
-	for _, ms := range g.state.availableMachines {
+	for _, ms := range g.state.inventory {
 		if ms != nil && ms.BeingDragged {
 			return ms
 		}
 	}
 	return nil
+}
+
+func dealMachines(catalogue []MachineInterface, n int, runsLeft int) []*MachineState {
+	result := make([]*MachineState, n)
+	for i := 0; i < n; i++ {
+		idx := rand.Intn(len(catalogue))
+		machine := catalogue[idx]
+		result[i] = &MachineState{Machine: machine, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: runsLeft}
+	}
+	return result
 }
 
 // NewGame creates a new Game instance.
@@ -262,11 +276,15 @@ func NewGame(width, height int) *Game {
 
 	state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
 
-	state.availableMachines = []*MachineState{
-		{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-		{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-		{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+	state.catalogue = []MachineInterface{
+		&Conveyor{},
+		&Processor{},
+		&Miner{},
 	}
+	state.inventorySize = 5
+	state.restocksLeft = 3
+	state.inventory = dealMachines(state.catalogue, 5, 6)
+	state.inventorySelected = make([]bool, len(state.inventory))
 
 	return g
 }
@@ -303,7 +321,7 @@ func (g *Game) initButtons() {
 	rotateLeftBtn := &Button{}
 	gridRightEdge := g.gridStartX + displayCols*g.cellSize + (displayCols-1)*g.gridMargin
 	counterclockwiseX := gridRightEdge - 2*g.cellSize - g.gridMargin
-	counterclockwiseY := g.availableY
+	counterclockwiseY := g.availableY + g.cellSize + g.gridMargin
 	rotateLeftBtn.Init(counterclockwiseX, counterclockwiseY, g.cellSize, g.cellSize, "<-")
 	rotateLeftBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
 	rotateLeftBtn.States[PhaseBuild] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
@@ -317,7 +335,7 @@ func (g *Game) initButtons() {
 	// Rotate clockwise button
 	rotateRightBtn := &Button{}
 	clockwiseX := gridRightEdge - g.cellSize
-	clockwiseY := g.availableY
+	clockwiseY := g.availableY + g.cellSize + g.gridMargin
 	rotateRightBtn.Init(clockwiseX, clockwiseY, g.cellSize, g.cellSize, "->")
 	rotateRightBtn.Color = color.RGBA{R: 100, G: 100, B: 200, A: 255} // Blue
 	rotateRightBtn.States[PhaseBuild] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
@@ -350,6 +368,14 @@ func (g *Game) initButtons() {
 	closeInfoBtn.States[PhaseInfo] = ButtonState{Text: "Close", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
 	closeInfoBtn.Font = g.font
 	g.state.buttons["close_info"] = closeInfoBtn
+
+	// Restock button
+	restockBtn := &Button{}
+	restockBtn.Init(10, infoBarY+80, 80, 30, "Restock")
+	restockBtn.Color = color.RGBA{R: 200, G: 100, B: 200, A: 255} // Purple
+	restockBtn.States[PhaseBuild] = ButtonState{Text: "Restock", Color: color.RGBA{R: 200, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
+	restockBtn.Font = g.font
+	g.state.buttons["restock"] = restockBtn
 
 	// Popup restart button (for game over)
 	popupRestartBtn := &Button{}
@@ -476,7 +502,7 @@ func (g *Game) Update() error {
 		endCol := 1 + rand.Intn(displayCols)
 		endPos := endRow*gridCols + endCol
 		g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
-		g.state.availableMachines = []*MachineState{
+		g.state.inventory = []*MachineState{
 			{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
 			{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
 			{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
@@ -524,11 +550,9 @@ func (g *Game) Update() error {
 				g.state.machines[endPos] = endMachine
 			}
 			// Reset available machines
-			g.state.availableMachines = []*MachineState{
-				{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-				{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-				{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-			}
+			g.state.inventory = dealMachines(g.state.catalogue, g.state.inventorySize, g.state.runsLeft)
+			g.state.inventorySelected = make([]bool, len(g.state.inventory))
+			g.state.restocksLeft = 3
 		}
 	}
 
@@ -570,7 +594,7 @@ func (g *Game) Update() error {
 		endCol := 1 + rand.Intn(displayCols)
 		endPos := endRow*gridCols + endCol
 		g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
-		g.state.availableMachines = []*MachineState{
+		g.state.inventory = []*MachineState{
 			{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
 			{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
 			{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
