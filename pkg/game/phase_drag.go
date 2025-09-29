@@ -5,7 +5,7 @@ func (g *Game) handleDragAndDrop() {
 
 	selected := g.getSelectedMachine()
 	// Update button visibility and position
-	if selected != nil && selected.IsPlaced && selected.RunAdded == g.state.runsLeft {
+	if selected != nil && selected.IsPlaced {
 		g.state.buttons["sell"].States[PhaseBuild].Visible = true
 	} else {
 		g.state.buttons["sell"].States[PhaseBuild].Visible = false
