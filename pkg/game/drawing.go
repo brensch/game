@@ -1,11 +1,56 @@
 package game
 
 import (
+	"fmt"
 	"image/color"
+	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
+
+func getMachineName(mt MachineType) string {
+	switch mt {
+	case MachineConveyor:
+		return "Conveyor"
+	case MachineProcessor:
+		return "Processor"
+	case MachineMiner:
+		return "Miner"
+	case MachineEnd:
+		return "End"
+	default:
+		return "Unknown"
+	}
+}
+
+func wrapText(text string, maxLen int) []string {
+	words := strings.Fields(text)
+	var lines []string
+	current := ""
+	for _, word := range words {
+		if len(current)+len(word)+1 > maxLen {
+			if current != "" {
+				lines = append(lines, current)
+				current = word
+			} else {
+				lines = append(lines, word)
+				current = ""
+			}
+		} else {
+			if current != "" {
+				current += " " + word
+			} else {
+				current = word
+			}
+		}
+	}
+	if current != "" {
+		lines = append(lines, current)
+	}
+	return lines
+}
 
 func (g *Game) drawScanlines(screen *ebiten.Image) {
 	bounds := screen.Bounds()
@@ -198,3 +243,130 @@ func (g *Game) drawRotateArrow(screen *ebiten.Image, x, y, width, height int, le
 // 		vector.DrawFilledCircle(screen, float32(x), float32(y), 10, anim.Color, false)
 // 	}
 // }
+
+func (g *Game) drawTooltip(screen *ebiten.Image) {
+	var tooltipMachine MachineInterface
+	var tooltipX, tooltipY int
+	var isHover bool
+
+	// Use current cursor position for hover detection
+	cx, cy := ebiten.CursorPosition()
+
+	// Check for hover over grid machines
+	for pos := 0; pos < gridCols*gridRows; pos++ {
+		ms := g.state.machines[pos]
+		if ms != nil && !ms.BeingDragged && ms.Machine != nil {
+			col := pos % gridCols
+			row := pos / gridCols
+			if row >= 1 && row <= displayRows && col >= 1 && col <= displayCols {
+				x := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin)
+				y := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
+				if cx >= x-15 && cx <= x+g.cellSize+15 && cy >= y-15 && cy <= y+g.cellSize+15 {
+					tooltipMachine = ms.Machine
+					tooltipX = x + g.cellSize/2 - 200
+					tooltipY = y - 80
+					isHover = true
+					break
+				}
+			}
+		}
+	}
+
+	// If not hovering over grid, check inventory
+	if tooltipMachine == nil {
+		for i, ms := range g.state.inventory {
+			if ms != nil && !ms.BeingDragged && ms.Machine != nil {
+				row := i / 7
+				col := i % 7
+				x := g.gridStartX + col*(g.cellSize+g.gridMargin)
+				y := g.availableY + row*(g.cellSize+g.gridMargin)
+				if cx >= x-15 && cx <= x+g.cellSize+15 && cy >= y-15 && cy <= y+g.cellSize+15 {
+					tooltipMachine = ms.Machine
+					tooltipX = x + g.cellSize/2 - 200
+					tooltipY = y - 80
+					isHover = true
+					break
+				}
+			}
+		}
+	}
+
+	// If not hovering, show for selected machine
+	if tooltipMachine == nil {
+		selected := g.getSelectedMachine()
+		if selected != nil && selected.Machine != nil {
+			tooltipMachine = selected.Machine
+			if selected.IsPlaced {
+				// Grid machine
+				for pos, ms := range g.state.machines {
+					if ms == selected {
+						col := pos % gridCols
+						row := pos / gridCols
+						tooltipX = g.gridStartX + (col-1)*(g.cellSize+g.gridMargin) + g.cellSize/2 - 200
+						tooltipY = g.gridStartY + (row-1)*(g.cellSize+g.gridMargin) - 80
+						break
+					}
+				}
+			} else {
+				// Inventory machine
+				for i, ms := range g.state.inventory {
+					if ms == selected {
+						row := i / 7
+						col := i % 7
+						tooltipX = g.gridStartX + col*(g.cellSize+g.gridMargin) + g.cellSize/2 - 200
+						tooltipY = g.availableY + row*(g.cellSize+g.gridMargin) - 80
+						break
+					}
+				}
+			}
+			isHover = false
+		}
+	}
+
+	if tooltipMachine != nil {
+		name := getMachineName(tooltipMachine.GetType())
+		description := tooltipMachine.GetDescription()
+		cost := tooltipMachine.GetCost()
+		lines := wrapText(description, 60)
+
+		// Calculate height
+		nameHeight := 15
+		lineHeight := 15
+		costHeight := 15
+		totalHeight := 20 + nameHeight + len(lines)*lineHeight + costHeight
+
+		// Ensure tooltip stays on screen
+		if tooltipX < 5 {
+			tooltipX = 5
+		}
+		if tooltipX > g.screenWidth-405 {
+			tooltipX = g.screenWidth - 405
+		}
+		if tooltipY < 5 {
+			tooltipY = 5
+		}
+		if tooltipY > g.height-totalHeight-5 {
+			tooltipY = g.height - totalHeight - 5
+		}
+
+		// Draw tooltip background
+		var bgColor color.RGBA
+		if isHover {
+			bgColor = color.RGBA{R: 255, G: 255, B: 0, A: 255} // Yellow for hover
+		} else {
+			bgColor = color.RGBA{R: 255, G: 255, B: 255, A: 255} // White for selected
+		}
+		vector.DrawFilledRect(screen, float32(tooltipX-5), float32(tooltipY-5), 400, float32(totalHeight), bgColor, false)
+		vector.StrokeRect(screen, float32(tooltipX-5), float32(tooltipY-5), 400, float32(totalHeight), 1, color.RGBA{R: 0, G: 0, B: 0, A: 255}, false)
+
+		// Draw tooltip text
+		y := tooltipY + 10
+		text.Draw(screen, name, g.font, tooltipX, y, color.Black)
+		y += nameHeight
+		for _, line := range lines {
+			text.Draw(screen, line, g.font, tooltipX, y, color.Black)
+			y += lineHeight
+		}
+		text.Draw(screen, fmt.Sprintf("Cost: $%d", cost), g.font, tooltipX, y, color.Black)
+	}
+}

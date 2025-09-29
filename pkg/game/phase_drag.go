@@ -100,30 +100,50 @@ func (g *Game) handleDragAndDrop() {
 		}
 
 		if !buttonClicked {
-			// Deselect all machines
-			for _, m := range g.state.machines {
-				if m != nil {
-					m.Selected = false
-				}
-			}
-
-			// Check if picking from available
+			// Check if picking from available first
+			inventoryClicked := false
 			for i, ms := range g.state.inventory {
 				row := i / 7
 				col := i % 7
 				x := g.gridStartX + col*(g.cellSize+g.gridMargin)
 				y := g.availableY + row*(g.cellSize+g.gridMargin)
 				if cx >= x-10 && cx <= x+g.cellSize+10 && cy >= y-10 && cy <= y+g.cellSize+10 {
+					// Deselect all grid machines
+					for _, m := range g.state.machines {
+						if m != nil {
+							m.Selected = false
+						}
+					}
 					g.state.inventorySelected[i] = !g.state.inventorySelected[i]
 					ms.Selected = g.state.inventorySelected[i]
+					inventoryClicked = true
 					break
 				}
 			}
 
-			// Check if picking placed machine
-			ms := g.getMachineAt(cx, cy)
-			if ms != nil {
-				ms.Selected = true
+			if !inventoryClicked {
+				// Deselect all inventory
+				for i := range g.state.inventorySelected {
+					g.state.inventorySelected[i] = false
+				}
+				for _, ms := range g.state.inventory {
+					if ms != nil {
+						ms.Selected = false
+					}
+				}
+
+				// Deselect all grid machines
+				for _, m := range g.state.machines {
+					if m != nil {
+						m.Selected = false
+					}
+				}
+
+				// Check if picking placed machine
+				ms := g.getMachineAt(cx, cy)
+				if ms != nil {
+					ms.Selected = true
+				}
 			}
 		}
 

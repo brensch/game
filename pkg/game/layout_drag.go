@@ -21,6 +21,9 @@ func (g *Game) drawDragLayout(screen *ebiten.Image) {
 			x := g.gridStartX + col*(g.cellSize+g.gridMargin)
 			y := g.availableY + row*(g.cellSize+g.gridMargin)
 			vector.DrawFilledRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), ms.Machine.GetColor(), false)
+			if g.state.inventorySelected[i] {
+				vector.StrokeRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), 3, color.RGBA{R: 255, G: 0, B: 0, A: 255}, false)
+			}
 		}
 	}
 
