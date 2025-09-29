@@ -49,50 +49,67 @@ func (g *Game) drawRunLayout(screen *ebiten.Image) {
 		panic(err)
 	}
 	faceLarge := &text.GoTextFace{Source: source, Size: 24}
-	smallBoxW := 60
-	smallBoxH := 40
-	gap := 10
-	xW := 10
-	totalW := smallBoxW + gap + xW + gap + smallBoxW
-	startX := (g.screenWidth - totalW) / 2
 	y := g.bottomY + 10
-	baseBoxX := startX
-	xPos := startX + smallBoxW + gap
-	multBoxX := startX + smallBoxW + gap + xW + gap
 
-	// Run Score label
-	scoreWidth, _ := text.Measure("Run Score", faceLarge, 0)
-	scoreX := startX - int(scoreWidth) - 20
-	opScore := &text.DrawOptions{}
-	opScore.GeoM.Translate(float64(scoreX), float64(y+8))
-	opScore.ColorScale.ScaleWithColor(color.White)
-	text.Draw(screen, "Run Score", faceLarge, opScore)
+	if len(g.state.animations) == 0 && g.state.roundScore > 0 {
+		// Run ended, show the total points earned
+		total := g.state.roundScore * g.state.multiplier
+		totalStr := fmt.Sprintf("%d", total)
+		totalWidth, _ := text.Measure(totalStr, faceLarge, 0)
+		totalBoxW := int(totalWidth) + 20
+		totalBoxH := 40
+		totalBoxX := (g.screenWidth - totalBoxW) / 2
+		vector.DrawFilledRect(screen, float32(totalBoxX), float32(y), float32(totalBoxW), float32(totalBoxH), color.RGBA{R: 0, G: 0, B: 0, A: 255}, false)
+		opTotal := &text.DrawOptions{}
+		opTotal.GeoM.Translate(float64(totalBoxX+10), float64(y+8))
+		opTotal.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, totalStr, faceLarge, opTotal)
+	} else {
+		// Running, show Run Score with boxes
+		smallBoxW := 60
+		smallBoxH := 40
+		gap := 10
+		xW := 10
+		totalW := smallBoxW + gap + xW + gap + smallBoxW
+		startX := (g.screenWidth - totalW) / 2
+		baseBoxX := startX
+		xPos := startX + smallBoxW + gap
+		multBoxX := startX + smallBoxW + gap + xW + gap
 
-	// Base box
-	vector.DrawFilledRect(screen, float32(baseBoxX), float32(y), float32(smallBoxW), float32(smallBoxH), color.RGBA{R: 0, G: 0, B: 0, A: 255}, false)
+		// Run Score label
+		scoreWidth, _ := text.Measure("Run Score", faceLarge, 0)
+		scoreX := startX - int(scoreWidth) - 20
+		opScore := &text.DrawOptions{}
+		opScore.GeoM.Translate(float64(scoreX), float64(y+8))
+		opScore.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, "Run Score", faceLarge, opScore)
 
-	// x
-	opX := &text.DrawOptions{}
-	opX.GeoM.Translate(float64(xPos), float64(y+8))
-	opX.ColorScale.ScaleWithColor(color.White)
-	text.Draw(screen, "x", faceLarge, opX)
+		// Base box
+		vector.DrawFilledRect(screen, float32(baseBoxX), float32(y), float32(smallBoxW), float32(smallBoxH), color.RGBA{R: 0, G: 0, B: 0, A: 255}, false)
 
-	// Mult box
-	vector.DrawFilledRect(screen, float32(multBoxX), float32(y), float32(smallBoxW), float32(smallBoxH), color.RGBA{R: 0, G: 0, B: 0, A: 255}, false)
+		// x
+		opX := &text.DrawOptions{}
+		opX.GeoM.Translate(float64(xPos), float64(y+8))
+		opX.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, "x", faceLarge, opX)
 
-	// Base text
-	baseStr := fmt.Sprintf("%d", g.state.roundScore)
-	opBase := &text.DrawOptions{}
-	opBase.GeoM.Translate(float64(baseBoxX+10), float64(y+8))
-	opBase.ColorScale.ScaleWithColor(color.White)
-	text.Draw(screen, baseStr, faceLarge, opBase)
+		// Mult box
+		vector.DrawFilledRect(screen, float32(multBoxX), float32(y), float32(smallBoxW), float32(smallBoxH), color.RGBA{R: 0, G: 0, B: 0, A: 255}, false)
 
-	// Mult text
-	multStr := fmt.Sprintf("%d", g.state.multiplier)
-	opMult := &text.DrawOptions{}
-	opMult.GeoM.Translate(float64(multBoxX+10), float64(y+8))
-	opMult.ColorScale.ScaleWithColor(color.White)
-	text.Draw(screen, multStr, faceLarge, opMult)
+		// Base text
+		baseStr := fmt.Sprintf("%d", g.state.roundScore)
+		opBase := &text.DrawOptions{}
+		opBase.GeoM.Translate(float64(baseBoxX+10), float64(y+8))
+		opBase.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, baseStr, faceLarge, opBase)
+
+		// Mult text
+		multStr := fmt.Sprintf("%d", g.state.multiplier)
+		opMult := &text.DrawOptions{}
+		opMult.GeoM.Translate(float64(multBoxX+10), float64(y+8))
+		opMult.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, multStr, faceLarge, opMult)
+	}
 
 	// Draw info bar at bottom
 	g.drawInfoBar(screen, g.bottomY+g.bottomHeight)
