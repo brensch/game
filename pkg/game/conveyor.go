@@ -54,11 +54,6 @@ func (c *Conveyor) GetDescription() string {
 	return "Moves objects in the direction it's facing."
 }
 
-// GetCost returns the cost to place this machine.
-func (c *Conveyor) GetCost() int {
-	return 1
-}
-
 // GetName returns the machine name.
 func (c *Conveyor) GetName() string {
 	return "Conveyor"

@@ -1,7 +1,6 @@
 package game
 
 import (
-	"fmt"
 	"image/color"
 	"strings"
 
@@ -296,7 +295,6 @@ func (g *Game) drawTooltip(screen *ebiten.Image) {
 	if tooltipMachine != nil {
 		name := tooltipMachine.GetName()
 		description := tooltipMachine.GetDescription()
-		cost := tooltipMachine.GetCost()
 		roles := tooltipMachine.GetRoles()
 		lines := wrapText(description, 40)
 
@@ -316,8 +314,7 @@ func (g *Game) drawTooltip(screen *ebiten.Image) {
 		nameHeight := 15
 		lineHeight := 15
 		rolesHeight := 15
-		costHeight := 15
-		totalHeight := 20 + nameHeight + len(lines)*lineHeight + rolesHeight + costHeight
+		totalHeight := 20 + nameHeight + len(lines)*lineHeight + rolesHeight
 
 		// Ensure tooltip stays on screen
 		if tooltipX < 5 {
@@ -360,9 +357,5 @@ func (g *Game) drawTooltip(screen *ebiten.Image) {
 			text.Draw(screen, rolesStr, g.font, op3)
 			y += rolesHeight
 		}
-		op4 := &text.DrawOptions{}
-		op4.GeoM.Translate(float64(tooltipX), float64(y))
-		op4.ColorScale.ScaleWithColor(color.Black)
-		text.Draw(screen, fmt.Sprintf("Cost: $%d", cost), g.font, op4)
 	}
 }

@@ -81,11 +81,6 @@ func (a *Amplifier) GetDescription() string {
 	return "Doubles the value of objects passing through and boosts nearby producers."
 }
 
-// GetCost returns the cost to place this machine.
-func (a *Amplifier) GetCost() int {
-	return 8
-}
-
 // GetName returns the machine name.
 func (a *Amplifier) GetName() string {
 	return "Amplifier"

@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"math"
 	"math/rand"
+	"sort"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -260,7 +261,13 @@ func NewGame(width, height int) *Game {
 
 	state.catalogue = []MachineInterface{
 		&Conveyor{},
+		&Conveyor{},
+		&Conveyor{},
+		&Conveyor{},
+		&Conveyor{},
 		&Processor{},
+		&Processor{},
+		&Miner{},
 		&Miner{},
 		&Splitter{},
 		&GeneralConsumer{},
@@ -270,7 +277,7 @@ func NewGame(width, height int) *Game {
 		&Catalyst{},
 	}
 	state.inventorySize = 5
-	state.restocksLeft = 3
+	state.restocksLeft = 1
 	state.inventory = dealMachines(state.catalogue, 5, 6)
 	state.inventorySelected = make([]bool, len(state.inventory))
 
@@ -580,24 +587,33 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	// Draw info popup
 	if g.state.phase == PhaseInfo {
-		popupX := g.screenWidth/2 - 150
-		popupY := g.height/2 - 100
-		popupW := 300
-		popupH := 200
+		popupX := g.screenWidth/2 - 200
+		popupY := g.height/2 - 250
+		popupW := 400
+		popupH := 500
 		vector.DrawFilledRect(screen, float32(popupX), float32(popupY), float32(popupW), float32(popupH), color.RGBA{R: 50, G: 50, B: 50, A: 200}, false)
 		vector.DrawFilledRect(screen, float32(popupX), float32(popupY), float32(popupW), float32(popupH), color.RGBA{R: 0, G: 0, B: 0, A: 0}, true) // Border
 		op3 := &text.DrawOptions{}
 		op3.GeoM.Translate(float64(popupX+20), float64(popupY+30))
 		op3.ColorScale.ScaleWithColor(color.White)
-		text.Draw(screen, "Game Info", g.font, op3)
-		op4 := &text.DrawOptions{}
-		op4.GeoM.Translate(float64(popupX+20), float64(popupY+60))
-		op4.ColorScale.ScaleWithColor(color.White)
-		text.Draw(screen, "This is a factory automation game.", g.font, op4)
-		op5 := &text.DrawOptions{}
-		op5.GeoM.Translate(float64(popupX+20), float64(popupY+80))
-		op5.ColorScale.ScaleWithColor(color.White)
-		text.Draw(screen, "Build machines to process objects.", g.font, op5)
+		text.Draw(screen, "Machine Catalogue", g.font, op3)
+		yOffset := popupY + 60
+		uniqueMachines := make(map[string]bool)
+		for _, machine := range g.state.catalogue {
+			uniqueMachines[machine.GetName()] = true
+		}
+		var names []string
+		for name := range uniqueMachines {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			nameOp := &text.DrawOptions{}
+			nameOp.GeoM.Translate(float64(popupX+20), float64(yOffset))
+			nameOp.ColorScale.ScaleWithColor(color.White)
+			text.Draw(screen, name, g.font, nameOp)
+			yOffset += 20
+		}
 		g.state.buttons["close_info"].Render(screen, g.state)
 	}
 }

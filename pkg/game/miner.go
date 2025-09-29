@@ -65,11 +65,6 @@ func (m *Miner) GetDescription() string {
 	return "Generates objects of different colors."
 }
 
-// GetCost returns the cost to place this machine.
-func (m *Miner) GetCost() int {
-	return 5
-}
-
 // GetName returns the machine name.
 func (m *Miner) GetName() string {
 	return "Miner"

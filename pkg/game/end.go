@@ -51,11 +51,6 @@ func (e *GeneralConsumer) GetDescription() string {
 	return "Collects objects that reach it, scoring points based on their color."
 }
 
-// GetCost returns the cost to place this machine.
-func (e *GeneralConsumer) GetCost() int {
-	return 0
-}
-
 // GetName returns the machine name.
 func (e *GeneralConsumer) GetName() string {
 	return "General Consumer"

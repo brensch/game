@@ -63,11 +63,6 @@ func (s *Splitter) GetDescription() string {
 	return "Takes one object and splits it into two objects of half the value, moving them forward."
 }
 
-// GetCost returns the cost to place this machine.
-func (s *Splitter) GetCost() int {
-	return 4
-}
-
 // GetName returns the machine name.
 func (s *Splitter) GetName() string {
 	return "Splitter"

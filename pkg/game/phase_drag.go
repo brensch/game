@@ -188,32 +188,24 @@ func (g *Game) handleDragAndDrop() {
 			if gridX != -1 {
 				var placedMS *MachineState
 				if !dragging.IsPlaced {
-					cost := dragging.Machine.GetCost()
-					if g.state.money >= cost {
-						g.state.money -= cost
-						// Create a new instance for placed machine
-						newMS := &MachineState{
-							Machine:      dragging.Machine,
-							Orientation:  dragging.Orientation,
-							BeingDragged: false,
-							IsPlaced:     true,
-							RunAdded:     g.state.runsLeft,
+					// Create a new instance for placed machine
+					newMS := &MachineState{
+						Machine:      dragging.Machine,
+						Orientation:  dragging.Orientation,
+						BeingDragged: false,
+						IsPlaced:     true,
+						RunAdded:     g.state.runsLeft,
+					}
+					position := (gridY+1)*gridCols + (gridX + 1)
+					g.state.machines[position] = newMS
+					placedMS = newMS
+					// Remove from inventory
+					for i, ms := range g.state.inventory {
+						if ms == dragging {
+							g.state.inventory = append(g.state.inventory[:i], g.state.inventory[i+1:]...)
+							g.state.inventorySelected = append(g.state.inventorySelected[:i], g.state.inventorySelected[i+1:]...)
+							break
 						}
-						position := (gridY+1)*gridCols + (gridX + 1)
-						g.state.machines[position] = newMS
-						placedMS = newMS
-						// Remove from inventory
-						for i, ms := range g.state.inventory {
-							if ms == dragging {
-								g.state.inventory = append(g.state.inventory[:i], g.state.inventory[i+1:]...)
-								g.state.inventorySelected = append(g.state.inventorySelected[:i], g.state.inventorySelected[i+1:]...)
-								break
-							}
-						}
-					} else {
-						// Not enough money, don't place
-						dragging.BeingDragged = false
-						return
 					}
 				} else {
 					// Moving existing placed machine

@@ -76,11 +76,6 @@ func (c *Catalyst) GetDescription() string {
 	return "Moves objects forward and increases efficiency of adjacent machines."
 }
 
-// GetCost returns the cost to place this machine.
-func (c *Catalyst) GetCost() int {
-	return 5
-}
-
 // GetName returns the machine name.
 func (c *Catalyst) GetName() string {
 	return "Catalyst"

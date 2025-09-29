@@ -178,7 +178,6 @@ func handleRunClick(g *Game, input InputState) {
 func handleSellClick(g *Game, input InputState) {
 	selected := g.getSelectedMachine()
 	if selected != nil && selected.IsPlaced {
-		g.state.money += selected.Machine.GetCost()
 		// Remove from grid
 		for pos, ms := range g.state.machines {
 			if ms == selected {

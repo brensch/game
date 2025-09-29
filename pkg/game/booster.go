@@ -76,11 +76,6 @@ func (b *Booster) GetDescription() string {
 	return "Moves objects forward and boosts the speed of adjacent machines."
 }
 
-// GetCost returns the cost to place this machine.
-func (b *Booster) GetCost() int {
-	return 4
-}
-
 // GetName returns the machine name.
 func (b *Booster) GetName() string {
 	return "Booster"

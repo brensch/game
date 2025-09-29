@@ -58,11 +58,6 @@ func (p *Processor) GetDescription() string {
 	return "Transforms objects to the next color and moves them forward. Gives +1 multiplier when processing green objects."
 }
 
-// GetCost returns the cost to place this machine.
-func (p *Processor) GetCost() int {
-	return 3
-}
-
 // GetName returns the machine name.
 func (p *Processor) GetName() string {
 	return "Processor"

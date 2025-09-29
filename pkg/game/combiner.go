@@ -67,11 +67,6 @@ func (c *Combiner) GetDescription() string {
 	return "Combines two objects into one with combined value and multipliers."
 }
 
-// GetCost returns the cost to place this machine.
-func (c *Combiner) GetCost() int {
-	return 6
-}
-
 // GetName returns the machine name.
 func (c *Combiner) GetName() string {
 	return "Combiner"
