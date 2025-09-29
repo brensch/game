@@ -215,11 +215,13 @@ func (g *Game) getDraggingMachine() *MachineState {
 }
 
 func dealMachines(catalogue []MachineInterface, n int, runsLeft int) []*MachineState {
-	result := make([]*MachineState, n)
-	for i := 0; i < n; i++ {
+	result := make([]*MachineState, 0, n)
+	for i := 0; i < n && len(catalogue) > 0; i++ {
 		idx := rand.Intn(len(catalogue))
 		machine := catalogue[idx]
-		result[i] = &MachineState{Machine: machine, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: runsLeft}
+		result = append(result, &MachineState{Machine: machine, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: runsLeft})
+		// Remove from catalogue
+		catalogue = append(catalogue[:idx], catalogue[idx+1:]...)
 	}
 	return result
 }
@@ -268,16 +270,16 @@ func NewGame(width, height int) *Game {
 		&Processor{},
 		&Processor{},
 		&Miner{},
-		&Miner{},
-		&Splitter{},
-		&GeneralConsumer{},
-		&Amplifier{},
-		&Combiner{},
-		&Booster{},
-		&Catalyst{},
+		// &Miner{},
+		// &Splitter{},
+		// &GeneralConsumer{},
+		// &Amplifier{},
+		// &Combiner{},
+		// &Booster{},
+		// &Catalyst{},
 	}
 	state.inventorySize = 5
-	state.restocksLeft = 1
+	state.restocksLeft = 3
 	state.inventory = dealMachines(state.catalogue, 5, 6)
 	state.inventorySelected = make([]bool, len(state.inventory))
 
