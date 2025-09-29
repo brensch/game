@@ -252,6 +252,8 @@ func (g *Game) GetInput() {
 	if g.lastInput.Pressed && !g.lastInput.IsDragging {
 		framesHeld := g.frameCount - g.lastInput.ClickStartFrame
 		if framesHeld >= longClickThreshold {
+			// Reset long clicked machine for this check
+			g.lastInput.LongClickedMachine = nil
 			// Find which machine is being clicked
 			cx, cy := g.lastInput.X, g.lastInput.Y
 
