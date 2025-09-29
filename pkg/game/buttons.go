@@ -88,7 +88,7 @@ func (b *Button) Render(screen *ebiten.Image, gameState *GameState) {
 		}
 		textWidth, _ := text.Measure(buttonText, b.Font, 0)
 		textX := b.X + (b.Width-int(textWidth))/2
-		textY := b.Y + b.Height/2 + 5
+		textY := b.Y + b.Height/2 - 5
 		op := &text.DrawOptions{}
 		op.GeoM.Translate(float64(textX), float64(textY))
 		op.ColorScale.ScaleWithColor(color.Black)

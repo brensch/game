@@ -45,6 +45,7 @@ func (g *Game) drawInfoBar(screen *ebiten.Image, y int) {
 		panic(err)
 	}
 	face := &text.GoTextFace{Source: source, Size: 20}
+	faceSmall := &text.GoTextFace{Source: source, Size: 12}
 
 	for i := 0; i < 4; i++ {
 		x := buttonSpace + i*boxWidth
@@ -53,7 +54,10 @@ func (g *Game) drawInfoBar(screen *ebiten.Image, y int) {
 
 		// Label: small text at top
 		labelY := y + 2
-		ebitenutil.DebugPrintAt(screen, labels[i], x+10, labelY)
+		opLabel := &text.DrawOptions{}
+		opLabel.GeoM.Translate(float64(x+10), float64(labelY))
+		opLabel.ColorScale.ScaleWithColor(color.Black)
+		text.Draw(screen, labels[i], faceSmall, opLabel)
 
 		// Inner black rectangle for number
 		innerWidth := 60
