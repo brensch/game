@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/text"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
@@ -341,16 +341,28 @@ func (g *Game) drawTooltip(screen *ebiten.Image) {
 
 		// Draw tooltip text
 		y := tooltipY + 10
-		text.Draw(screen, name, g.font, tooltipX, y, color.Black)
+		op1 := &text.DrawOptions{}
+		op1.GeoM.Translate(float64(tooltipX), float64(y))
+		op1.ColorScale.ScaleWithColor(color.Black)
+		text.Draw(screen, name, g.font, op1)
 		y += nameHeight
 		for _, line := range lines {
-			text.Draw(screen, line, g.font, tooltipX, y, color.Black)
+			op2 := &text.DrawOptions{}
+			op2.GeoM.Translate(float64(tooltipX), float64(y))
+			op2.ColorScale.ScaleWithColor(color.Black)
+			text.Draw(screen, line, g.font, op2)
 			y += lineHeight
 		}
 		if rolesStr != "" {
-			text.Draw(screen, rolesStr, g.font, tooltipX, y, color.Black)
+			op3 := &text.DrawOptions{}
+			op3.GeoM.Translate(float64(tooltipX), float64(y))
+			op3.ColorScale.ScaleWithColor(color.Black)
+			text.Draw(screen, rolesStr, g.font, op3)
 			y += rolesHeight
 		}
-		text.Draw(screen, fmt.Sprintf("Cost: $%d", cost), g.font, tooltipX, y, color.Black)
+		op4 := &text.DrawOptions{}
+		op4.GeoM.Translate(float64(tooltipX), float64(y))
+		op4.ColorScale.ScaleWithColor(color.Black)
+		text.Draw(screen, fmt.Sprintf("Cost: $%d", cost), g.font, op4)
 	}
 }

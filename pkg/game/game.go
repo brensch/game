@@ -1,13 +1,14 @@
 package game
 
 import (
+	"bytes"
 	"fmt"
 	"image/color"
 	"math"
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/text"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/gomono"
@@ -166,7 +167,8 @@ type Game struct {
 	// lastSelected                                                                *MachineState
 
 	vignetteImage *ebiten.Image
-	font          font.Face
+	font          text.Face
+	oldFont       font.Face
 	lastInput     InputState
 	frameCount    int
 }
@@ -249,9 +251,20 @@ func NewGame(width, height int) *Game {
 	g := &Game{state: state}
 	g.width = width
 	g.height = height
+	source, err := text.NewGoTextFaceSource(bytes.NewReader(gomono.TTF))
+	if err != nil {
+		panic(err)
+	}
+	g.font = &text.GoTextFace{Source: source, Size: 16}
 	fontData := gomono.TTF
-	parsed, _ := opentype.Parse(fontData)
-	g.font, _ = opentype.NewFace(parsed, &opentype.FaceOptions{Size: 16, DPI: 72})
+	parsed, err := opentype.Parse(fontData)
+	if err != nil {
+		panic(err)
+	}
+	g.oldFont, err = opentype.NewFace(parsed, &opentype.FaceOptions{Size: 12, DPI: 72})
+	if err != nil {
+		panic(err)
+	}
 	g.calculateLayout()
 
 	// Initialize buttons
@@ -285,7 +298,7 @@ func (g *Game) initButtons() {
 	restartBtn.States[PhaseBuild] = &ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	restartBtn.States[PhaseRun] = &ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	restartBtn.States[PhaseRoundEnd] = &ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
-	restartBtn.Font = g.font
+	restartBtn.Font = g.oldFont
 	g.state.buttons["restart"] = restartBtn
 
 	// Start Run button
@@ -294,7 +307,7 @@ func (g *Game) initButtons() {
 	runBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
 	runBtn.States[PhaseBuild] = &ButtonState{Text: "Start Run", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
 	runBtn.States[PhaseRun] = &ButtonState{Text: "Running", Color: color.RGBA{R: 200, G: 200, B: 100, A: 255}, Disabled: true, Visible: true}
-	runBtn.Font = g.font
+	runBtn.Font = g.oldFont
 	g.state.buttons["run"] = runBtn
 
 	// Rotate counterclockwise button
@@ -307,7 +320,7 @@ func (g *Game) initButtons() {
 	rotateLeftBtn.Init(counterclockwiseX, counterclockwiseY, buttonSize, buttonSize, "<-", handleRotateLeftClick)
 	rotateLeftBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
 	rotateLeftBtn.States[PhaseBuild] = &ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
-	rotateLeftBtn.Font = g.font
+	rotateLeftBtn.Font = g.oldFont
 	rotateLeftBtn.CustomRender = func(screen *ebiten.Image, b *Button, phase GamePhase) {
 		g.drawRotateArrow(screen, b.X, b.Y, b.Width, b.Height, true)
 	}
@@ -320,7 +333,7 @@ func (g *Game) initButtons() {
 	rotateRightBtn.Init(clockwiseX, clockwiseY, buttonSize, buttonSize, "->", handleRotateRightClick)
 	rotateRightBtn.Color = color.RGBA{R: 100, G: 100, B: 200, A: 255} // Blue
 	rotateRightBtn.States[PhaseBuild] = &ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
-	rotateRightBtn.Font = g.font
+	rotateRightBtn.Font = g.oldFont
 	rotateRightBtn.CustomRender = func(screen *ebiten.Image, b *Button, phase GamePhase) {
 		g.drawRotateArrow(screen, b.X, b.Y, b.Width, b.Height, false)
 	}
@@ -331,7 +344,7 @@ func (g *Game) initButtons() {
 	nextRoundBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Next Round", handleNextRoundClick)
 	nextRoundBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
 	nextRoundBtn.States[PhaseRoundEnd] = &ButtonState{Text: "Next Round", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
-	nextRoundBtn.Font = g.font
+	nextRoundBtn.Font = g.oldFont
 	g.state.buttons["next_round"] = nextRoundBtn
 
 	// Info button
@@ -340,13 +353,13 @@ func (g *Game) initButtons() {
 	infoBtn.Color = color.RGBA{R: 100, G: 100, B: 200, A: 255} // Blue
 	infoBtn.States[PhaseBuild] = &ButtonState{Text: "Info", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
 	infoBtn.States[PhaseRoundEnd] = &ButtonState{Text: "Info", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
-	infoBtn.Font = g.font
+	infoBtn.Font = g.oldFont
 	g.state.buttons["info"] = infoBtn // Close info button
 	closeInfoBtn := &Button{}
 	closeInfoBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Close", handleCloseInfoClick)
 	closeInfoBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
 	closeInfoBtn.States[PhaseInfo] = &ButtonState{Text: "Close", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
-	closeInfoBtn.Font = g.font
+	closeInfoBtn.Font = g.oldFont
 	g.state.buttons["close_info"] = closeInfoBtn
 
 	// Restock button
@@ -355,7 +368,7 @@ func (g *Game) initButtons() {
 	restockBtn.Init(restockX, g.availableY+g.cellSize+g.gridMargin, 80, 30, "Restock", handleRestockClick)
 	restockBtn.Color = color.RGBA{R: 200, G: 100, B: 200, A: 255} // Purple
 	restockBtn.States[PhaseBuild] = &ButtonState{Text: "Restock", Color: color.RGBA{R: 200, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
-	restockBtn.Font = g.font
+	restockBtn.Font = g.oldFont
 	g.state.buttons["restock"] = restockBtn
 
 	// Sell button
@@ -366,13 +379,13 @@ func (g *Game) initButtons() {
 	sellBtn.Init(sellX, sellY, sellWidth, buttonSize, "Sell", handleSellClick)
 	sellBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
 	sellBtn.States[PhaseBuild] = &ButtonState{Text: "Sell", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
-	sellBtn.Font = g.font
+	sellBtn.Font = g.oldFont
 	g.state.buttons["sell"] = sellBtn
 	popupRestartBtn := &Button{}
 	popupRestartBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Restart", handleRestartClick)
 	popupRestartBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
 	popupRestartBtn.States[PhaseGameOver] = &ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
-	popupRestartBtn.Font = g.font
+	popupRestartBtn.Font = g.oldFont
 	g.state.buttons["popup_restart"] = popupRestartBtn
 }
 
@@ -621,8 +634,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		popupH := 200
 		vector.DrawFilledRect(screen, float32(popupX), float32(popupY), float32(popupW), float32(popupH), color.RGBA{R: 50, G: 50, B: 50, A: 200}, false)
 		vector.DrawFilledRect(screen, float32(popupX), float32(popupY), float32(popupW), float32(popupH), color.RGBA{R: 0, G: 0, B: 0, A: 0}, true) // Border
-		text.Draw(screen, "Game Over", g.font, popupX+20, popupY+30, color.White)
-		text.Draw(screen, fmt.Sprintf("Final Score: %d", g.state.totalScore), g.font, popupX+20, popupY+60, color.White)
+		op1 := &text.DrawOptions{}
+		op1.GeoM.Translate(float64(popupX+20), float64(popupY+30))
+		op1.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, "Game Over", g.font, op1)
+		op2 := &text.DrawOptions{}
+		op2.GeoM.Translate(float64(popupX+20), float64(popupY+60))
+		op2.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, fmt.Sprintf("Final Score: %d", g.state.totalScore), g.font, op2)
 		g.state.buttons["popup_restart"].Render(screen, g.state)
 	}
 
@@ -634,9 +653,18 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		popupH := 200
 		vector.DrawFilledRect(screen, float32(popupX), float32(popupY), float32(popupW), float32(popupH), color.RGBA{R: 50, G: 50, B: 50, A: 200}, false)
 		vector.DrawFilledRect(screen, float32(popupX), float32(popupY), float32(popupW), float32(popupH), color.RGBA{R: 0, G: 0, B: 0, A: 0}, true) // Border
-		text.Draw(screen, "Game Info", g.font, popupX+20, popupY+30, color.White)
-		text.Draw(screen, "This is a factory automation game.", g.font, popupX+20, popupY+60, color.White)
-		text.Draw(screen, "Build machines to process objects.", g.font, popupX+20, popupY+80, color.White)
+		op3 := &text.DrawOptions{}
+		op3.GeoM.Translate(float64(popupX+20), float64(popupY+30))
+		op3.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, "Game Info", g.font, op3)
+		op4 := &text.DrawOptions{}
+		op4.GeoM.Translate(float64(popupX+20), float64(popupY+60))
+		op4.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, "This is a factory automation game.", g.font, op4)
+		op5 := &text.DrawOptions{}
+		op5.GeoM.Translate(float64(popupX+20), float64(popupY+80))
+		op5.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, "Build machines to process objects.", g.font, op5)
 		g.state.buttons["close_info"].Render(screen, g.state)
 	}
 }
