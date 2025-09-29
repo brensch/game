@@ -17,40 +17,59 @@ func (g *Game) drawInfoBar(screen *ebiten.Image, y int) {
 	// Define layout: leave space on left for buttons
 	buttonSpace := 100
 	contentWidth := g.screenWidth - buttonSpace
-	boxWidth := contentWidth / 3
+	boxWidth := contentWidth / 4
 	rowHeight := barHeight / 2
 
-	// Top row: Round | Runs Left | Money
-	// Round box (left)
-	roundX := buttonSpace
-	vector.DrawFilledRect(screen, float32(roundX), float32(y), float32(boxWidth), float32(rowHeight), color.RGBA{R: 100, G: 100, B: 100, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round: %d", g.state.round), roundX+10, y+15)
+	// Top row: Round | Runs Left | Money | Restocks Left
+	colors := []color.RGBA{
+		{R: 0, G: 100, B: 200, A: 255}, // Blue for Round
+		{R: 0, G: 150, B: 0, A: 255},   // Green for Runs Left
+		{R: 200, G: 150, B: 0, A: 255}, // Gold for Money
+		{R: 200, G: 0, B: 0, A: 255},   // Red for Restocks
+	}
+	labels := []string{"Round", "Runs Left", "Money", "Restocks"}
+	values := []string{
+		fmt.Sprintf("%d", g.state.round),
+		fmt.Sprintf("%d", g.state.runsLeft),
+		fmt.Sprintf("$%d", g.state.money),
+		fmt.Sprintf("%d", g.state.restocksLeft),
+	}
 
-	// Runs Left box (middle)
-	runsX := roundX + boxWidth
-	vector.DrawFilledRect(screen, float32(runsX), float32(y), float32(boxWidth), float32(rowHeight), color.RGBA{R: 100, G: 100, B: 100, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Runs Left: %d", g.state.runsLeft), runsX+10, y+15)
+	for i := 0; i < 4; i++ {
+		x := buttonSpace + i*boxWidth
+		// Outer colored rectangle
+		vector.DrawFilledRect(screen, float32(x), float32(y), float32(boxWidth), float32(rowHeight), colors[i], false)
 
-	// Money box (right)
-	moneyX := runsX + boxWidth
-	vector.DrawFilledRect(screen, float32(moneyX), float32(y), float32(boxWidth), float32(rowHeight), color.RGBA{R: 100, G: 100, B: 100, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Money: $%d", g.state.money), moneyX+10, y+15)
+		// Label: small text at top
+		labelY := y + 5
+		ebitenutil.DebugPrintAt(screen, labels[i], x+10, labelY)
 
-	// Bottom row: Score | Progress Bar | Target
+		// Inner black rectangle for number
+		innerWidth := 50
+		innerHeight := 20
+		innerX := x + (boxWidth-innerWidth)/2
+		innerY := y + 25
+		vector.DrawFilledRect(screen, float32(innerX), float32(innerY), float32(innerWidth), float32(innerHeight), color.RGBA{R: 0, G: 0, B: 0, A: 255}, false)
+
+		// Number inside, centered
+		numX := innerX + (innerWidth-len(values[i])*6)/2
+		numY := innerY + 5
+		ebitenutil.DebugPrintAt(screen, values[i], numX, numY)
+	}
+
+	// Bottom row: Full width progress bar
 	bottomY := y + rowHeight
+	progressText := fmt.Sprintf("Score %d / Target %d", g.state.totalScore, g.state.targetScore)
+	textWidth := len(progressText) * 6
+	textX := buttonSpace + (contentWidth-textWidth)/2
+	ebitenutil.DebugPrintAt(screen, progressText, textX, bottomY+5)
 
-	// Score box (bottom left)
-	vector.DrawFilledRect(screen, float32(roundX), float32(bottomY), float32(boxWidth), float32(rowHeight), color.RGBA{R: 100, G: 100, B: 100, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Score: %d", g.state.totalScore), roundX+10, bottomY+15)
-
-	// Progress bar box (bottom middle)
-	vector.DrawFilledRect(screen, float32(runsX), float32(bottomY), float32(boxWidth), float32(rowHeight), color.RGBA{R: 100, G: 100, B: 100, A: 255}, false)
 	// Progress bar
 	barMargin := 10
-	barY := bottomY + 10
-	barHeight2 := rowHeight - 20
-	barLeft := runsX + barMargin
-	barRight := runsX + boxWidth - barMargin
+	barY := bottomY + 20
+	barHeight2 := rowHeight - 30
+	barLeft := buttonSpace + barMargin
+	barRight := g.screenWidth - barMargin
 	barWidth := barRight - barLeft
 	progress := float64(g.state.totalScore) / float64(g.state.targetScore)
 	if progress > 1.0 {
@@ -61,12 +80,6 @@ func (g *Game) drawInfoBar(screen *ebiten.Image, y int) {
 	vector.DrawFilledRect(screen, float32(barLeft), float32(barY), float32(barWidth), float32(barHeight2), color.RGBA{R: 50, G: 50, B: 50, A: 255}, false)
 	// Fill
 	vector.DrawFilledRect(screen, float32(barLeft), float32(barY), float32(fillWidth), float32(barHeight2), color.RGBA{R: 0, G: 200, B: 0, A: 255}, false)
-
-	// Target box (bottom right)
-	vector.DrawFilledRect(screen, float32(moneyX), float32(bottomY), float32(boxWidth), float32(rowHeight), color.RGBA{R: 100, G: 100, B: 100, A: 255}, false)
-	targetStr := fmt.Sprintf("Target: %d", g.state.targetScore)
-	targetX := moneyX + (boxWidth-len(targetStr)*6)/2 // Center the text
-	ebitenutil.DebugPrintAt(screen, targetStr, targetX, bottomY+15)
 
 	// Render info bar buttons
 	for _, button := range g.state.buttons {
