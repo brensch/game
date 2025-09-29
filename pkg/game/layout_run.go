@@ -37,7 +37,8 @@ func (g *Game) drawRunLayout(screen *ebiten.Image) {
 		progress := anim.Elapsed / anim.Duration
 		x := anim.StartX + (anim.EndX-anim.StartX)*progress
 		y := anim.StartY + (anim.EndY-anim.StartY)*progress
-		vector.DrawFilledRect(screen, float32(x-2), float32(y-2), 4, 4, anim.Color, false)
+		size := float64(g.cellSize) / 4
+		vector.DrawFilledRect(screen, float32(x-size/2), float32(y-size/2), float32(size), float32(size), anim.Color, false)
 	}
 
 	// Draw bottom panel
