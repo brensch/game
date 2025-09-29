@@ -156,50 +156,69 @@ func (b *Button) Init(x, y, width, height int, text string, onClick func(g *Game
 
 // Render draws the button on the screen.
 func (b *Button) Render(screen *ebiten.Image, gameState *GameState) {
-	state := b.States[gameState.phase]
+	state, hasState := b.States[gameState.phase]
 
 	// Check if this button should be visible based on the game state
-	visible := state.Visible
+	visible := false // Default to invisible
 
 	// Special logic for machine-dependent buttons
 	if b == gameState.buttons["rotate_left"] || b == gameState.buttons["rotate_right"] || b == gameState.buttons["sell"] {
 		// These buttons are visible when a placeable, non-End machine is selected
 		selected := getSelectedMachine(gameState)
 		visible = selected != nil && selected.IsPlaced && selected.Machine.GetType() != MachineEnd
+	} else if hasState {
+		// For regular buttons, use state visibility if defined
+		visible = state.Visible
 	}
 
 	if !visible {
 		return
 	}
 
-	btnColor := state.Color
-	if state.Disabled {
-		btnColor = color.RGBA{R: 100, G: 100, B: 100, A: 255}
+	// Use button's default color if no state is defined, otherwise use state color
+	btnColor := b.Color
+	if hasState {
+		btnColor = state.Color
+		if state.Disabled {
+			btnColor = color.RGBA{R: 100, G: 100, B: 100, A: 255}
+		}
 	}
 	vector.DrawFilledRect(screen, float32(b.X), float32(b.Y), float32(b.Width), float32(b.Height), btnColor, false)
 
 	if b.CustomRender != nil {
 		b.CustomRender(screen, b, gameState.phase)
 	} else {
-		text.Draw(screen, state.Text, b.Font, b.X+5, b.Y+b.Height/2+5, color.Black)
+		// Use button text if no state is defined, otherwise use state text
+		buttonText := b.Text
+		if hasState {
+			buttonText = state.Text
+		}
+		text.Draw(screen, buttonText, b.Font, b.X+5, b.Y+b.Height/2+5, color.Black)
 	}
 }
 
 // IsClicked checks if the button was clicked using the input state.
 func (b *Button) IsClicked(input InputState, gameState *GameState) bool {
-	state := b.States[gameState.phase]
+	state, hasState := b.States[gameState.phase]
 
 	// Check if this button should be visible based on the game state
-	visible := state.Visible
+	visible := false // Default to invisible
 
 	// Special logic for machine-dependent buttons
 	if b == gameState.buttons["rotate_left"] || b == gameState.buttons["rotate_right"] || b == gameState.buttons["sell"] {
 		// These buttons are visible when a placeable, non-End machine is selected
 		selected := getSelectedMachine(gameState)
 		visible = selected != nil && selected.IsPlaced && selected.Machine.GetType() != MachineEnd
+	} else if hasState {
+		// For regular buttons, use state visibility if defined
+		visible = state.Visible
 	}
 
-	if !visible || state.Disabled {
+	if !visible {
+		return false
+	}
+	// Only check disabled state if we have a state defined
+	if hasState && state.Disabled {
 		return false
 	}
 	if input.JustPressed {
@@ -390,7 +409,8 @@ func handleRunClick(g *Game, input InputState) {
 
 func handleSellClick(g *Game, input InputState) {
 	selected := g.getSelectedMachine()
-	if selected != nil && selected.IsPlaced && selected.Machine.GetType() != MachineEnd {
+	if selected != nil && selected.IsPlaced && selected.RunAdded == g.state.runsLeft && selected.Machine.GetType() != MachineEnd {
+		g.state.money += selected.Machine.GetCost()
 		// Remove from grid
 		for pos, ms := range g.state.machines {
 			if ms == selected {
@@ -448,15 +468,47 @@ func handleCloseInfoClick(g *Game, input InputState) {
 }
 
 func handleRotateLeftClick(g *Game, input InputState) {
-	// TODO: Implement rotate left functionality
+	selected := g.getSelectedMachine()
+	if selected != nil {
+		selected.Orientation = (selected.Orientation + 3) % 4
+	}
 }
 
 func handleRotateRightClick(g *Game, input InputState) {
-	// TODO: Implement rotate right functionality
+	selected := g.getSelectedMachine()
+	if selected != nil {
+		selected.Orientation = (selected.Orientation + 1) % 4
+	}
 }
 
 func handleRestockClick(g *Game, input InputState) {
-	// TODO: Implement restock functionality
+	if g.state.restocksLeft > 0 {
+		selectedIndices := []int{}
+		for i, sel := range g.state.inventorySelected {
+			if sel {
+				selectedIndices = append(selectedIndices, i)
+			}
+		}
+		num := len(selectedIndices)
+		if num > 0 {
+			// Discard selected
+			newInventory := []*MachineState{}
+			newSelected := []bool{}
+			for i, ms := range g.state.inventory {
+				if !g.state.inventorySelected[i] {
+					newInventory = append(newInventory, ms)
+					newSelected = append(newSelected, false)
+				}
+			}
+			g.state.inventory = newInventory
+			g.state.inventorySelected = newSelected
+			// Deal num new
+			newMachines := dealMachines(g.state.catalogue, num, g.state.runsLeft)
+			g.state.inventory = append(g.state.inventory, newMachines...)
+			g.state.inventorySelected = append(g.state.inventorySelected, make([]bool, num)...)
+			g.state.restocksLeft--
+		}
+	}
 }
 
 func (g *Game) initButtons() {
@@ -482,10 +534,11 @@ func (g *Game) initButtons() {
 
 	// Rotate counterclockwise button
 	rotateLeftBtn := &Button{}
+	buttonSize := g.cellSize / 2
 	gridRightEdge := g.gridStartX + displayCols*g.cellSize + (displayCols-1)*g.gridMargin
-	counterclockwiseX := gridRightEdge - 2*g.cellSize - g.gridMargin
-	counterclockwiseY := g.availableY + g.cellSize + g.gridMargin
-	rotateLeftBtn.Init(counterclockwiseX, counterclockwiseY, g.cellSize, g.cellSize, "<-", handleRotateLeftClick)
+	counterclockwiseX := gridRightEdge - 2*buttonSize - 5
+	counterclockwiseY := g.availableY + g.cellSize + g.gridMargin + 10
+	rotateLeftBtn.Init(counterclockwiseX, counterclockwiseY, buttonSize, buttonSize, "<-", handleRotateLeftClick)
 	rotateLeftBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
 	rotateLeftBtn.States[PhaseBuild] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
 	rotateLeftBtn.States[PhaseRun] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
@@ -497,9 +550,9 @@ func (g *Game) initButtons() {
 
 	// Rotate clockwise button
 	rotateRightBtn := &Button{}
-	clockwiseX := gridRightEdge - g.cellSize
-	clockwiseY := g.availableY + g.cellSize + g.gridMargin
-	rotateRightBtn.Init(clockwiseX, clockwiseY, g.cellSize, g.cellSize, "->", handleRotateRightClick)
+	clockwiseX := gridRightEdge - buttonSize
+	clockwiseY := g.availableY + g.cellSize + g.gridMargin + 10
+	rotateRightBtn.Init(clockwiseX, clockwiseY, buttonSize, buttonSize, "->", handleRotateRightClick)
 	rotateRightBtn.Color = color.RGBA{R: 100, G: 100, B: 200, A: 255} // Blue
 	rotateRightBtn.States[PhaseBuild] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
 	rotateRightBtn.States[PhaseRun] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
@@ -543,8 +596,8 @@ func (g *Game) initButtons() {
 
 	// Sell button
 	sellBtn := &Button{}
-	sellX := gridRightEdge - 2*g.cellSize - g.gridMargin - 80 - g.gridMargin
-	sellBtn.Init(sellX, g.availableY+g.cellSize+g.gridMargin, 80, 30, "Sell", handleSellClick)
+	sellX := gridRightEdge - 3*buttonSize - 2*5
+	sellBtn.Init(sellX, g.availableY+g.cellSize+g.gridMargin+10, buttonSize, buttonSize, "Sell", handleSellClick)
 	sellBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
 	sellBtn.States[PhaseBuild] = ButtonState{Text: "Sell", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
 	sellBtn.Font = g.font
@@ -635,25 +688,37 @@ func (g *Game) updateButtonPositions() {
 				machineX := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin)
 				machineY := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
 
-				// Position buttons below the selected machine
-				buttonY := machineY + g.cellSize + g.gridMargin
+				// Position buttons below the selected machine, offset from grid alignment
+				buttonSize := g.cellSize / 2
+				buttonY := machineY + g.cellSize + g.gridMargin + 10 // Extra offset from grid
+
+				// Center the buttons below the machine
+				machineCenterX := machineX + g.cellSize/2
+				totalButtonWidth := 3*buttonSize + 2*5 // 3 buttons + 2 gaps of 5px
+				startX := machineCenterX - totalButtonWidth/2
 
 				// Update rotate left button
 				if rotateLeft, exists := g.state.buttons["rotate_left"]; exists {
-					rotateLeft.X = machineX
+					rotateLeft.X = startX
 					rotateLeft.Y = buttonY
+					rotateLeft.Width = buttonSize
+					rotateLeft.Height = buttonSize
 				}
 
 				// Update rotate right button
 				if rotateRight, exists := g.state.buttons["rotate_right"]; exists {
-					rotateRight.X = machineX + g.cellSize + g.gridMargin
+					rotateRight.X = startX + buttonSize + 5
 					rotateRight.Y = buttonY
+					rotateRight.Width = buttonSize
+					rotateRight.Height = buttonSize
 				}
 
 				// Update sell button
 				if sellBtn, exists := g.state.buttons["sell"]; exists {
-					sellBtn.X = machineX + 2*(g.cellSize+g.gridMargin)
+					sellBtn.X = startX + 2*buttonSize + 2*5
 					sellBtn.Y = buttonY
+					sellBtn.Width = buttonSize
+					sellBtn.Height = buttonSize
 				}
 			}
 			break
