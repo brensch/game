@@ -66,7 +66,7 @@ func (g *Game) drawInfoBar(screen *ebiten.Image, y int) {
 		width, _ := text.Measure(values[i], face, 0)
 		pixelWidth := int(width)
 		numX := innerX + (innerWidth-pixelWidth)/2
-		numY := innerY + innerHeight - 2
+		numY := innerY + 5
 		op := &text.DrawOptions{}
 		op.GeoM.Translate(float64(numX), float64(numY))
 		op.ColorScale.ScaleWithColor(color.White)

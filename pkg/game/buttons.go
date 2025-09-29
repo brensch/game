@@ -1,14 +1,25 @@
 package game
 
 import (
+	"bytes"
 	"fmt"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/text"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	"golang.org/x/image/font"
+	"golang.org/x/image/font/gofont/goregular"
 )
+
+var buttonSource *text.GoTextFaceSource
+
+func init() {
+	source, err := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
+	if err != nil {
+		panic(err)
+	}
+	buttonSource = source
+}
 
 // ButtonState represents the state of a button for a phase.
 type ButtonState struct {
@@ -24,7 +35,7 @@ type Button struct {
 	Text                string
 	Disabled            bool
 	Color               color.RGBA
-	Font                font.Face
+	Font                text.Face
 	States              map[GamePhase]*ButtonState
 	CustomRender        func(screen *ebiten.Image, b *Button, phase GamePhase)
 	OnClick             func(g *Game, input InputState) // Click handler function
@@ -75,10 +86,13 @@ func (b *Button) Render(screen *ebiten.Image, gameState *GameState) {
 		if state != nil {
 			buttonText = state.Text
 		}
-		textWidth := text.BoundString(b.Font, buttonText).Dx()
+		textWidth, _ := text.Measure(buttonText, b.Font, 0)
 		textX := b.X + (b.Width-int(textWidth))/2
 		textY := b.Y + b.Height/2 + 5
-		text.Draw(screen, buttonText, b.Font, textX, textY, color.Black)
+		op := &text.DrawOptions{}
+		op.GeoM.Translate(float64(textX), float64(textY))
+		op.ColorScale.ScaleWithColor(color.Black)
+		text.Draw(screen, buttonText, b.Font, op)
 	}
 }
 
