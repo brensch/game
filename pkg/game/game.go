@@ -590,6 +590,60 @@ func (g *Game) initButtons() {
 	g.state.buttons["popup_restart"] = popupRestartBtn
 }
 
+func (g *Game) repositionButtons() {
+	infoBarY := g.height - g.infoBarHeight
+
+	// Restart button
+	if restartBtn, exists := g.state.buttons["restart"]; exists {
+		restartBtn.X = 10
+		restartBtn.Y = infoBarY + 5
+	}
+
+	// Start Run button
+	if runBtn, exists := g.state.buttons["run"]; exists {
+		runBtn.X = g.screenWidth - 10 - buttonWidth
+		runBtn.Y = g.bottomY + 10
+		runBtn.Width = buttonWidth
+		runBtn.Height = g.bottomHeight - 20
+	}
+
+	// Rotate buttons are repositioned dynamically in phase_drag.go, skip here
+
+	// Next Round button
+	if nextRoundBtn, exists := g.state.buttons["next_round"]; exists {
+		nextRoundBtn.X = g.screenWidth/2 - 50
+		nextRoundBtn.Y = g.height/2 + 50
+	}
+
+	// Info button
+	if infoBtn, exists := g.state.buttons["info"]; exists {
+		infoBtn.X = 10
+		infoBtn.Y = infoBarY + 45
+	}
+
+	// Close info button
+	if closeInfoBtn, exists := g.state.buttons["close_info"]; exists {
+		closeInfoBtn.X = g.screenWidth/2 - 50
+		closeInfoBtn.Y = g.height/2 + 50
+	}
+
+	// Restock button
+	if restockBtn, exists := g.state.buttons["restock"]; exists {
+		gridRightEdge := g.gridStartX + displayCols*g.cellSize + (displayCols-1)*g.gridMargin
+		restockX := gridRightEdge - 2*g.cellSize - g.gridMargin - 80 - g.gridMargin - 80 - g.gridMargin
+		restockBtn.X = restockX
+		restockBtn.Y = g.availableY + g.cellSize + g.gridMargin
+	}
+
+	// Sell button is repositioned dynamically in phase_drag.go, skip here
+
+	// Popup restart button
+	if popupRestartBtn, exists := g.state.buttons["popup_restart"]; exists {
+		popupRestartBtn.X = g.screenWidth/2 - 50
+		popupRestartBtn.Y = g.height/2 + 50
+	}
+}
+
 func (g *Game) calculateLayout() {
 	g.topPanelHeight = topPanelHeight
 	g.infoBarHeight = topPanelHeight
@@ -855,6 +909,8 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	// Only initialize buttons if they don't exist yet
 	if len(g.state.buttons) == 0 {
 		g.initButtons()
+	} else {
+		g.repositionButtons()
 	}
 
 	if g.vignetteImage == nil || g.vignetteImage.Bounds().Dx() != outsideWidth || g.vignetteImage.Bounds().Dy() != outsideHeight {
