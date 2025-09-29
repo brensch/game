@@ -36,28 +36,36 @@ func getMachineName(mt MachineType) string {
 }
 
 func wrapText(text string, maxLen int) []string {
-	words := strings.Fields(text)
+	// First split by newlines
+	paragraphs := strings.Split(text, "\n")
 	var lines []string
-	current := ""
-	for _, word := range words {
-		if len(current)+len(word)+1 > maxLen {
-			if current != "" {
-				lines = append(lines, current)
-				current = word
+	for _, para := range paragraphs {
+		if para == "" {
+			lines = append(lines, "")
+			continue
+		}
+		words := strings.Fields(para)
+		current := ""
+		for _, word := range words {
+			if len(current)+len(word)+1 > maxLen {
+				if current != "" {
+					lines = append(lines, current)
+					current = word
+				} else {
+					lines = append(lines, word)
+					current = ""
+				}
 			} else {
-				lines = append(lines, word)
-				current = ""
-			}
-		} else {
-			if current != "" {
-				current += " " + word
-			} else {
-				current = word
+				if current != "" {
+					current += " " + word
+				} else {
+					current = word
+				}
 			}
 		}
-	}
-	if current != "" {
-		lines = append(lines, current)
+		if current != "" {
+			lines = append(lines, current)
+		}
 	}
 	return lines
 }
@@ -290,7 +298,7 @@ func (g *Game) drawTooltip(screen *ebiten.Image) {
 		description := tooltipMachine.GetDescription()
 		cost := tooltipMachine.GetCost()
 		roles := tooltipMachine.GetRoles()
-		lines := wrapText(description, 60)
+		lines := wrapText(description, 40)
 
 		// Build roles string
 		var rolesStr string
