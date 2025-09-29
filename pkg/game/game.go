@@ -53,7 +53,34 @@ const (
 	MachineProcessor
 	MachineMiner
 	MachineEnd
+	MachineSplitter
 )
+
+// MachineRole represents the roles a machine can have.
+type MachineRole int
+
+const (
+	RoleProducer MachineRole = iota
+	RoleConsumer
+	RoleMover
+	RoleUpgrader
+)
+
+// getMachineRoleName returns the name of a machine role.
+func getMachineRoleName(role MachineRole) string {
+	switch role {
+	case RoleProducer:
+		return "Producer"
+	case RoleConsumer:
+		return "Consumer"
+	case RoleMover:
+		return "Mover"
+	case RoleUpgrader:
+		return "Upgrader"
+	default:
+		return "Unknown"
+	}
+}
 
 // Orientation represents the direction a machine is facing.
 type Orientation int
@@ -233,6 +260,7 @@ func NewGame(width, height int) *Game {
 		&Conveyor{},
 		&Processor{},
 		&Miner{},
+		&Splitter{},
 	}
 	state.inventorySize = 5
 	state.restocksLeft = 3

@@ -12,6 +12,16 @@ func (m *Miner) GetType() MachineType {
 	return MachineMiner
 }
 
+// GetRoles returns the machine roles.
+func (m *Miner) GetRoles() []MachineRole {
+	return []MachineRole{RoleProducer}
+}
+
+// GetRoleNames returns the names of the machine roles.
+func (m *Miner) GetRoleNames() []string {
+	return []string{"Producer"}
+}
+
 // GetColor returns the machine color.
 func (m *Miner) GetColor() color.RGBA {
 	return color.RGBA{R: 139, G: 69, B: 19, A: 255} // Brown

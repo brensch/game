@@ -74,12 +74,14 @@ type EffectEmission struct {
 // MachineInterface defines the behavior for different machine types.
 type MachineInterface interface {
 	GetType() MachineType
+	GetRoles() []MachineRole
 	GetColor() color.RGBA
 	Process(position int, history [][]*Object, tick int, orientation Orientation) []*Change
 	EmitEffects(game *Game, state *MachineState) []EffectEmission
 	GetDescription() string
 	GetCost() int
 	GetName() string
+	GetRoleNames() []string
 }
 
 // Score represents the scoring components.

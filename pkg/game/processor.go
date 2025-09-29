@@ -12,6 +12,16 @@ func (p *Processor) GetType() MachineType {
 	return MachineProcessor
 }
 
+// GetRoles returns the machine roles.
+func (p *Processor) GetRoles() []MachineRole {
+	return []MachineRole{RoleConsumer, RoleProducer, RoleMover}
+}
+
+// GetRoleNames returns the names of the machine roles.
+func (p *Processor) GetRoleNames() []string {
+	return []string{"Consumer", "Producer", "Mover"}
+}
+
 // GetColor returns the machine color.
 func (p *Processor) GetColor() color.RGBA {
 	return color.RGBA{R: 100, G: 200, B: 100, A: 255}

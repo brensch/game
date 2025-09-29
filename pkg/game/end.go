@@ -12,6 +12,16 @@ func (e *End) GetType() MachineType {
 	return MachineEnd
 }
 
+// GetRoles returns the machine roles.
+func (e *End) GetRoles() []MachineRole {
+	return []MachineRole{RoleConsumer}
+}
+
+// GetRoleNames returns the names of the machine roles.
+func (e *End) GetRoleNames() []string {
+	return []string{"Consumer"}
+}
+
 // GetColor returns the machine color.
 func (e *End) GetColor() color.RGBA {
 	return color.RGBA{R: 255, G: 150, B: 150, A: 255}

@@ -12,6 +12,16 @@ func (c *Conveyor) GetType() MachineType {
 	return MachineConveyor
 }
 
+// GetRoles returns the machine roles.
+func (c *Conveyor) GetRoles() []MachineRole {
+	return []MachineRole{RoleMover}
+}
+
+// GetRoleNames returns the names of the machine roles.
+func (c *Conveyor) GetRoleNames() []string {
+	return []string{"Mover"}
+}
+
 // GetColor returns the machine color.
 func (c *Conveyor) GetColor() color.RGBA {
 	return color.RGBA{R: 200, G: 200, B: 200, A: 255}

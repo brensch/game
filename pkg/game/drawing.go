@@ -20,6 +20,8 @@ func getMachineName(mt MachineType) string {
 		return "Miner"
 	case MachineEnd:
 		return "End"
+	case MachineSplitter:
+		return "Splitter"
 	default:
 		return "Unknown"
 	}
@@ -324,16 +326,30 @@ func (g *Game) drawTooltip(screen *ebiten.Image) {
 	}
 
 	if tooltipMachine != nil {
-		name := getMachineName(tooltipMachine.GetType())
+		name := tooltipMachine.GetName()
 		description := tooltipMachine.GetDescription()
 		cost := tooltipMachine.GetCost()
+		roles := tooltipMachine.GetRoles()
 		lines := wrapText(description, 60)
+
+		// Build roles string
+		var rolesStr string
+		if len(roles) > 0 {
+			rolesStr = "Roles: "
+			for i, role := range roles {
+				if i > 0 {
+					rolesStr += ", "
+				}
+				rolesStr += getMachineRoleName(role)
+			}
+		}
 
 		// Calculate height
 		nameHeight := 15
 		lineHeight := 15
+		rolesHeight := 15
 		costHeight := 15
-		totalHeight := 20 + nameHeight + len(lines)*lineHeight + costHeight
+		totalHeight := 20 + nameHeight + len(lines)*lineHeight + rolesHeight + costHeight
 
 		// Ensure tooltip stays on screen
 		if tooltipX < 5 {
@@ -366,6 +382,10 @@ func (g *Game) drawTooltip(screen *ebiten.Image) {
 		for _, line := range lines {
 			text.Draw(screen, line, g.font, tooltipX, y, color.Black)
 			y += lineHeight
+		}
+		if rolesStr != "" {
+			text.Draw(screen, rolesStr, g.font, tooltipX, y, color.Black)
+			y += rolesHeight
 		}
 		text.Draw(screen, fmt.Sprintf("Cost: $%d", cost), g.font, tooltipX, y, color.Black)
 	}
