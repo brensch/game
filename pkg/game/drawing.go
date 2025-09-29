@@ -18,8 +18,8 @@ func getMachineName(mt MachineType) string {
 		return "Processor"
 	case MachineMiner:
 		return "Miner"
-	case MachineEnd:
-		return "End"
+	case MachineGeneralConsumer:
+		return "General Consumer"
 	case MachineSplitter:
 		return "Splitter"
 	default:
@@ -187,9 +187,6 @@ func (g *Game) drawRotateArrow(screen *ebiten.Image, x, y, width, height int, le
 // 		y := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
 // 		vector.DrawFilledRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), ms.Machine.GetColor(), false)
 
-// 		if ms.Machine.GetType() == MachineEnd {
-// 			ebitenutil.DebugPrintAt(screen, "End", int(x)+15, int(y)+20)
-// 		}
 // 		g.drawArrow(screen, float32(x), float32(y), ms.Orientation)
 // 		if ms.Selected {
 // 			vector.StrokeRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), 3, color.RGBA{R: 255, G: 255, B: 0, A: 255}, false)

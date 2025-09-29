@@ -52,7 +52,7 @@ const (
 	MachineConveyor MachineType = iota
 	MachineProcessor
 	MachineMiner
-	MachineEnd
+	MachineGeneralConsumer
 	MachineSplitter
 )
 
@@ -249,18 +249,12 @@ func NewGame(width, height int) *Game {
 	// Initialize buttons
 	g.initButtons()
 
-	// Place random End machine
-	endRow := 1 + rand.Intn(displayRows)
-	endCol := 1 + rand.Intn(displayCols)
-	endPos := endRow*gridCols + endCol
-
-	state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
-
 	state.catalogue = []MachineInterface{
 		&Conveyor{},
 		&Processor{},
 		&Miner{},
 		&Splitter{},
+		&GeneralConsumer{},
 	}
 	state.inventorySize = 5
 	state.restocksLeft = 3
@@ -488,7 +482,7 @@ func (g *Game) getPos(ms *MachineState) int {
 // // updateButtonPositions updates dynamic button positions based on selected machines.
 // func (g *Game) updateButtonPositions() {
 // 	selected := getSelectedMachine(g.state)
-// 	if selected == nil || !selected.IsPlaced || selected.Machine.GetType() == MachineEnd {
+// 	if selected == nil || !selected.IsPlaced {
 // 		return
 // 	}
 

@@ -3,7 +3,6 @@ package game
 import (
 	"fmt"
 	"image/color"
-	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text"
@@ -127,16 +126,17 @@ func handleRestartClick(g *Game, input InputState) {
 		previousPhase:  PhaseBuild,
 	}
 	g.initButtons()
-	// Place random End machine
-	endRow := 1 + rand.Intn(displayRows)
-	endCol := 1 + rand.Intn(displayCols)
-	endPos := endRow*gridCols + endCol
-	g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
-	g.state.inventory = []*MachineState{
-		{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-		{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-		{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+	g.state.catalogue = []MachineInterface{
+		&Conveyor{},
+		&Processor{},
+		&Miner{},
+		&Splitter{},
+		&GeneralConsumer{},
 	}
+	g.state.inventorySize = 5
+	g.state.restocksLeft = 3
+	g.state.inventory = dealMachines(g.state.catalogue, 5, 6)
+	g.state.inventorySelected = make([]bool, len(g.state.inventory))
 }
 
 func handleRunClick(g *Game, input InputState) {
@@ -156,7 +156,7 @@ func handleRunClick(g *Game, input InputState) {
 
 func handleSellClick(g *Game, input InputState) {
 	selected := g.getSelectedMachine()
-	if selected != nil && selected.IsPlaced && selected.RunAdded == g.state.runsLeft && selected.Machine.GetType() != MachineEnd {
+	if selected != nil && selected.IsPlaced && selected.RunAdded == g.state.runsLeft {
 		g.state.money += selected.Machine.GetCost()
 		// Remove from grid
 		for pos, ms := range g.state.machines {
@@ -178,24 +178,8 @@ func handleNextRoundClick(g *Game, input InputState) {
 		g.state.round++
 		g.state.targetScore = g.state.round * g.state.round * 10
 		g.state.money += g.state.round * 10
-		// Reset machines: keep only End, clear others
-		var endMachine *MachineState
-		for _, ms := range g.state.machines {
-			if ms != nil && ms.Machine.GetType() == MachineEnd {
-				endMachine = ms
-				endMachine.IsPlaced = true
-				endMachine.RunAdded = g.state.runsLeft
-				break
-			}
-		}
+		// Reset machines
 		g.state.machines = make([]*MachineState, gridCols*gridRows)
-		if endMachine != nil {
-			// Place End at a random position
-			endRow := 1 + rand.Intn(displayRows)
-			endCol := 1 + rand.Intn(displayCols)
-			endPos := endRow*gridCols + endCol
-			g.state.machines[endPos] = endMachine
-		}
 		// Reset available machines
 		g.state.inventory = dealMachines(g.state.catalogue, g.state.inventorySize, g.state.runsLeft)
 		g.state.inventorySelected = make([]bool, len(g.state.inventory))

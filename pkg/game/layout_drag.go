@@ -41,9 +41,6 @@ func (g *Game) drawDragLayout(screen *ebiten.Image) {
 		y := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
 		vector.DrawFilledRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), ms.Machine.GetColor(), false)
 
-		if ms.Machine.GetType() == MachineEnd {
-			ebitenutil.DebugPrintAt(screen, "End", int(x)+15, int(y)+20)
-		}
 		g.drawArrow(screen, float32(x), float32(y), ms.Orientation)
 		if ms.Selected {
 			vector.StrokeRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), 3, color.RGBA{R: 255, G: 255, B: 0, A: 255}, false)

@@ -84,7 +84,15 @@ func (g *Game) handleRunPhase() {
 			g.state.runsLeft--
 			// Move end to random location up to 2 squares away
 			for pos, ms := range g.state.machines {
-				if ms != nil && ms.Machine.GetType() == MachineEnd {
+				roles := ms.Machine.GetRoles()
+				hasConsumer := false
+				for _, role := range roles {
+					if role == RoleConsumer {
+						hasConsumer = true
+						break
+					}
+				}
+				if ms != nil && hasConsumer {
 					currentPos := pos
 					var candidates []int
 					cr := currentPos / gridCols
