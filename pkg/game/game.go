@@ -56,6 +56,10 @@ const (
 	MachineMiner
 	MachineGeneralConsumer
 	MachineSplitter
+	MachineAmplifier
+	MachineCombiner
+	MachineBooster
+	MachineCatalyst
 )
 
 // MachineRole represents the roles a machine can have.
@@ -259,6 +263,10 @@ func NewGame(width, height int) *Game {
 		&Miner{},
 		&Splitter{},
 		&GeneralConsumer{},
+		&Amplifier{},
+		&Combiner{},
+		&Booster{},
+		&Catalyst{},
 	}
 	state.inventorySize = 5
 	state.restocksLeft = 3

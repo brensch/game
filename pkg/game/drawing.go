@@ -22,6 +22,14 @@ func getMachineName(mt MachineType) string {
 		return "General Consumer"
 	case MachineSplitter:
 		return "Splitter"
+	case MachineAmplifier:
+		return "Amplifier"
+	case MachineCombiner:
+		return "Combiner"
+	case MachineBooster:
+		return "Booster"
+	case MachineCatalyst:
+		return "Catalyst"
 	default:
 		return "Unknown"
 	}

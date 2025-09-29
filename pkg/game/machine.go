@@ -23,6 +23,8 @@ const (
 	EffectHolographic EffectType = iota
 	EffectShiny
 	EffectBuffSpeed
+	EffectAmplifyValue
+	EffectBuffEfficiency
 )
 
 // DurationType represents how effect duration is measured.

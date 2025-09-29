@@ -132,6 +132,10 @@ func handleRestartClick(g *Game, input InputState) {
 		&Miner{},
 		&Splitter{},
 		&GeneralConsumer{},
+		&Amplifier{},
+		&Combiner{},
+		&Booster{},
+		&Catalyst{},
 	}
 	g.state.inventorySize = 5
 	g.state.restocksLeft = 3
