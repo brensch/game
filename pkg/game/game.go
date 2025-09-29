@@ -26,7 +26,7 @@ const (
 	displayCols = 7
 	displayRows = 7
 
-	longClickThreshold = 30 // Frames before a click becomes a long click
+	longClickThreshold = 20 // Frames before a click becomes a long click
 )
 
 // ObjectType represents the different kinds of items that can move through the factory.

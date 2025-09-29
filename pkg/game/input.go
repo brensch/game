@@ -119,7 +119,7 @@ func getUnifiedInput(prev InputState, currentFrame int) InputState {
 		}
 		dx := x - newDragStartX
 		dy := y - newDragStartY
-		if !newIsDragging && dx*dx+dy*dy > 1000 {
+		if !newIsDragging && dx*dx+dy*dy > 2500 {
 			newIsDragging = true
 		}
 		newClickStartFrame := prev.ClickStartFrame
@@ -198,6 +198,11 @@ func GetCursorPosition() (int, int) {
 func (g *Game) GetInput() {
 	g.lastInput = getUnifiedInput(g.lastInput, g.frameCount)
 
+	// Clear long clicked machine when dragging starts
+	if g.lastInput.IsDragging && g.state.longClickedMachine != nil {
+		g.state.longClickedMachine = nil
+	}
+
 	// Check if we need to clear the long clicked machine on new click
 	if g.lastInput.JustPressed {
 		// Find which machine is being clicked now
@@ -253,7 +258,7 @@ func (g *Game) GetInput() {
 			// Check grid machines
 			for pos := 0; pos < gridCols*gridRows; pos++ {
 				ms := g.state.machines[pos]
-				if ms != nil && !ms.BeingDragged && ms.Machine != nil {
+				if ms != nil && ms.Machine != nil {
 					col := pos % gridCols
 					row := pos / gridCols
 					if row >= 1 && row <= displayRows && col >= 1 && col <= displayCols {
@@ -271,7 +276,7 @@ func (g *Game) GetInput() {
 			// If not on grid, check inventory
 			if g.lastInput.LongClickedMachine == nil {
 				for i, ms := range g.state.inventory {
-					if ms != nil && !ms.BeingDragged && ms.Machine != nil {
+					if ms != nil && ms.Machine != nil {
 						row := i / 7
 						col := i % 7
 						x := g.gridStartX + col*(g.cellSize+g.gridMargin)
