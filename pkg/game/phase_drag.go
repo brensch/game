@@ -7,13 +7,9 @@ func (g *Game) handleDragAndDrop() {
 	if selected != g.lastSelected {
 		// Update button visibility and position
 		if selected != nil && selected.IsPlaced && selected.RunAdded == g.state.runsLeft && selected.Machine.GetType() != MachineEnd {
-			state := g.state.buttons["sell"].States[PhaseBuild]
-			state.Visible = true
-			g.state.buttons["sell"].States[PhaseBuild] = state
+			g.state.buttons["sell"].States[PhaseBuild].Visible = true
 		} else {
-			state := g.state.buttons["sell"].States[PhaseBuild]
-			state.Visible = false
-			g.state.buttons["sell"].States[PhaseBuild] = state
+			g.state.buttons["sell"].States[PhaseBuild].Visible = false
 		}
 		hasSelectedInventory := false
 		for _, sel := range g.state.inventorySelected {
@@ -23,13 +19,9 @@ func (g *Game) handleDragAndDrop() {
 			}
 		}
 		if hasSelectedInventory && g.state.restocksLeft > 0 {
-			state := g.state.buttons["restock"].States[PhaseBuild]
-			state.Visible = true
-			g.state.buttons["restock"].States[PhaseBuild] = state
+			g.state.buttons["restock"].States[PhaseBuild].Visible = true
 		} else {
-			state := g.state.buttons["restock"].States[PhaseBuild]
-			state.Visible = false
-			g.state.buttons["restock"].States[PhaseBuild] = state
+			g.state.buttons["restock"].States[PhaseBuild].Visible = false
 		}
 		// Position buttons below selected machine
 		selectedPos := -1
@@ -52,62 +44,61 @@ func (g *Game) handleDragAndDrop() {
 				g.state.buttons["rotate_left"].Y = buttonY
 				g.state.buttons["rotate_right"].X = buttonX + 5
 				g.state.buttons["rotate_right"].Y = buttonY
-				state := g.state.buttons["rotate_left"].States[PhaseBuild]
-				state.Visible = true
-				g.state.buttons["rotate_left"].States[PhaseBuild] = state
-				state = g.state.buttons["rotate_right"].States[PhaseBuild]
-				state.Visible = true
-				g.state.buttons["rotate_right"].States[PhaseBuild] = state
+				g.state.buttons["rotate_left"].States[PhaseBuild].Visible = true
+				g.state.buttons["rotate_right"].States[PhaseBuild].Visible = true
 				// Sell button
 				g.state.buttons["sell"].X = buttonX - 40
 				g.state.buttons["sell"].Y = buttonY + 35
 			} else {
 				// Hide
-				state := g.state.buttons["rotate_left"].States[PhaseBuild]
-				state.Visible = false
-				g.state.buttons["rotate_left"].States[PhaseBuild] = state
-				state = g.state.buttons["rotate_right"].States[PhaseBuild]
-				state.Visible = false
-				g.state.buttons["rotate_right"].States[PhaseBuild] = state
+				g.state.buttons["rotate_left"].States[PhaseBuild].Visible = false
+				g.state.buttons["rotate_right"].States[PhaseBuild].Visible = false
 			}
 		} else {
 			// Hide rotate
-			state := g.state.buttons["rotate_left"].States[PhaseBuild]
-			state.Visible = false
-			g.state.buttons["rotate_left"].States[PhaseBuild] = state
-			state = g.state.buttons["rotate_right"].States[PhaseBuild]
-			state.Visible = false
-			g.state.buttons["rotate_right"].States[PhaseBuild] = state
+			g.state.buttons["rotate_left"].States[PhaseBuild].Visible = false
+			g.state.buttons["rotate_right"].States[PhaseBuild].Visible = false
 		}
 		g.lastSelected = selected
 	}
 
 	if g.lastInput.JustPressed {
 
-		// Deselect all machines
-		for _, m := range g.state.machines {
-			if m != nil {
-				m.Selected = false
-			}
-		}
-
-		// Check if picking from available
-		for i, ms := range g.state.inventory {
-			row := i / 7
-			col := i % 7
-			x := g.gridStartX + col*(g.cellSize+g.gridMargin)
-			y := g.availableY + row*(g.cellSize+g.gridMargin)
-			if cx >= x-10 && cx <= x+g.cellSize+10 && cy >= y-10 && cy <= y+g.cellSize+10 {
-				g.state.inventorySelected[i] = !g.state.inventorySelected[i]
-				ms.Selected = g.state.inventorySelected[i]
+		// Check if any button is clicked
+		buttonClicked := false
+		for _, button := range g.state.buttons {
+			if button.IsClicked(g.lastInput, g.state) {
+				buttonClicked = true
 				break
 			}
 		}
 
-		// Check if picking placed machine
-		ms := g.getMachineAt(cx, cy)
-		if ms != nil {
-			ms.Selected = true
+		if !buttonClicked {
+			// Deselect all machines
+			for _, m := range g.state.machines {
+				if m != nil {
+					m.Selected = false
+				}
+			}
+
+			// Check if picking from available
+			for i, ms := range g.state.inventory {
+				row := i / 7
+				col := i % 7
+				x := g.gridStartX + col*(g.cellSize+g.gridMargin)
+				y := g.availableY + row*(g.cellSize+g.gridMargin)
+				if cx >= x-10 && cx <= x+g.cellSize+10 && cy >= y-10 && cy <= y+g.cellSize+10 {
+					g.state.inventorySelected[i] = !g.state.inventorySelected[i]
+					ms.Selected = g.state.inventorySelected[i]
+					break
+				}
+			}
+
+			// Check if picking placed machine
+			ms := g.getMachineAt(cx, cy)
+			if ms != nil {
+				ms.Selected = true
+			}
 		}
 
 	}

@@ -136,7 +136,7 @@ type Button struct {
 	Disabled            bool
 	Color               color.RGBA
 	Font                font.Face
-	States              map[GamePhase]ButtonState
+	States              map[GamePhase]*ButtonState
 	CustomRender        func(screen *ebiten.Image, b *Button, phase GamePhase)
 	OnClick             func(g *Game, input InputState) // Click handler function
 }
@@ -150,24 +150,17 @@ func (b *Button) Init(x, y, width, height int, text string, onClick func(g *Game
 	b.Text = text
 	b.Disabled = false
 	b.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Default green
-	b.States = make(map[GamePhase]ButtonState)
+	b.States = make(map[GamePhase]*ButtonState)
 	b.OnClick = onClick
 }
 
 // Render draws the button on the screen.
 func (b *Button) Render(screen *ebiten.Image, gameState *GameState) {
-	state, hasState := b.States[gameState.phase]
+	state := b.States[gameState.phase]
 
-	// Check if this button should be visible based on the game state
-	visible := false // Default to invisible
-
-	// Special logic for machine-dependent buttons
-	if b == gameState.buttons["rotate_left"] || b == gameState.buttons["rotate_right"] || b == gameState.buttons["sell"] {
-		// These buttons are visible when a placeable, non-End machine is selected
-		selected := getSelectedMachine(gameState)
-		visible = selected != nil && selected.IsPlaced && selected.Machine.GetType() != MachineEnd
-	} else if hasState {
-		// For regular buttons, use state visibility if defined
+	// Check if this button should be visible
+	visible := false
+	if state != nil {
 		visible = state.Visible
 	}
 
@@ -177,7 +170,7 @@ func (b *Button) Render(screen *ebiten.Image, gameState *GameState) {
 
 	// Use button's default color if no state is defined, otherwise use state color
 	btnColor := b.Color
-	if hasState {
+	if state != nil {
 		btnColor = state.Color
 		if state.Disabled {
 			btnColor = color.RGBA{R: 100, G: 100, B: 100, A: 255}
@@ -190,7 +183,7 @@ func (b *Button) Render(screen *ebiten.Image, gameState *GameState) {
 	} else {
 		// Use button text if no state is defined, otherwise use state text
 		buttonText := b.Text
-		if hasState {
+		if state != nil {
 			buttonText = state.Text
 		}
 		text.Draw(screen, buttonText, b.Font, b.X+5, b.Y+b.Height/2+5, color.Black)
@@ -199,28 +192,13 @@ func (b *Button) Render(screen *ebiten.Image, gameState *GameState) {
 
 // IsClicked checks if the button was clicked using the input state.
 func (b *Button) IsClicked(input InputState, gameState *GameState) bool {
-	state, hasState := b.States[gameState.phase]
+	state := b.States[gameState.phase]
 
-	// Check if this button should be visible based on the game state
-	visible := false // Default to invisible
-
-	// Special logic for machine-dependent buttons
-	if b == gameState.buttons["rotate_left"] || b == gameState.buttons["rotate_right"] || b == gameState.buttons["sell"] {
-		// These buttons are visible when a placeable, non-End machine is selected
-		selected := getSelectedMachine(gameState)
-		visible = selected != nil && selected.IsPlaced && selected.Machine.GetType() != MachineEnd
-	} else if hasState {
-		// For regular buttons, use state visibility if defined
-		visible = state.Visible
-	}
-
-	if !visible {
-		return false
-	}
 	// Only check disabled state if we have a state defined
-	if hasState && state.Disabled {
+	if state != nil && (state.Disabled || !state.Visible) {
 		return false
 	}
+
 	if input.JustPressed {
 		cx, cy := input.X, input.Y
 		return cx >= b.X && cx <= b.X+b.Width && cy >= b.Y && cy <= b.Y+b.Height
@@ -468,6 +446,7 @@ func handleCloseInfoClick(g *Game, input InputState) {
 }
 
 func handleRotateLeftClick(g *Game, input InputState) {
+	fmt.Println("Rotate Left Clicked")
 	selected := g.getSelectedMachine()
 	if selected != nil {
 		selected.Orientation = (selected.Orientation + 3) % 4
@@ -517,9 +496,9 @@ func (g *Game) initButtons() {
 	infoBarY := g.height - g.infoBarHeight
 	restartBtn.Init(10, infoBarY+5, 80, 30, "Restart", handleRestartClick)
 	restartBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
-	restartBtn.States[PhaseBuild] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
-	restartBtn.States[PhaseRun] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
-	restartBtn.States[PhaseRoundEnd] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
+	restartBtn.States[PhaseBuild] = &ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
+	restartBtn.States[PhaseRun] = &ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
+	restartBtn.States[PhaseRoundEnd] = &ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	restartBtn.Font = g.font
 	g.state.buttons["restart"] = restartBtn
 
@@ -527,8 +506,8 @@ func (g *Game) initButtons() {
 	runBtn := &Button{}
 	runBtn.Init(g.screenWidth-10-buttonWidth, g.bottomY+10, buttonWidth, g.bottomHeight-20, "Start Run", handleRunClick)
 	runBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
-	runBtn.States[PhaseBuild] = ButtonState{Text: "Start Run", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
-	runBtn.States[PhaseRun] = ButtonState{Text: "Running", Color: color.RGBA{R: 200, G: 200, B: 100, A: 255}, Disabled: true, Visible: true}
+	runBtn.States[PhaseBuild] = &ButtonState{Text: "Start Run", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
+	runBtn.States[PhaseRun] = &ButtonState{Text: "Running", Color: color.RGBA{R: 200, G: 200, B: 100, A: 255}, Disabled: true, Visible: true}
 	runBtn.Font = g.font
 	g.state.buttons["run"] = runBtn
 
@@ -540,8 +519,7 @@ func (g *Game) initButtons() {
 	counterclockwiseY := g.availableY + g.cellSize + g.gridMargin + 10
 	rotateLeftBtn.Init(counterclockwiseX, counterclockwiseY, buttonSize, buttonSize, "<-", handleRotateLeftClick)
 	rotateLeftBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
-	rotateLeftBtn.States[PhaseBuild] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
-	rotateLeftBtn.States[PhaseRun] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
+	rotateLeftBtn.States[PhaseBuild] = &ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
 	rotateLeftBtn.Font = g.font
 	rotateLeftBtn.CustomRender = func(screen *ebiten.Image, b *Button, phase GamePhase) {
 		g.drawRotateArrow(screen, b.X, b.Y, b.Width, b.Height, true)
@@ -554,8 +532,7 @@ func (g *Game) initButtons() {
 	clockwiseY := g.availableY + g.cellSize + g.gridMargin + 10
 	rotateRightBtn.Init(clockwiseX, clockwiseY, buttonSize, buttonSize, "->", handleRotateRightClick)
 	rotateRightBtn.Color = color.RGBA{R: 100, G: 100, B: 200, A: 255} // Blue
-	rotateRightBtn.States[PhaseBuild] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
-	rotateRightBtn.States[PhaseRun] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
+	rotateRightBtn.States[PhaseBuild] = &ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
 	rotateRightBtn.Font = g.font
 	rotateRightBtn.CustomRender = func(screen *ebiten.Image, b *Button, phase GamePhase) {
 		g.drawRotateArrow(screen, b.X, b.Y, b.Width, b.Height, false)
@@ -566,7 +543,7 @@ func (g *Game) initButtons() {
 	nextRoundBtn := &Button{}
 	nextRoundBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Next Round", handleNextRoundClick)
 	nextRoundBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
-	nextRoundBtn.States[PhaseRoundEnd] = ButtonState{Text: "Next Round", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
+	nextRoundBtn.States[PhaseRoundEnd] = &ButtonState{Text: "Next Round", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
 	nextRoundBtn.Font = g.font
 	g.state.buttons["next_round"] = nextRoundBtn
 
@@ -574,14 +551,14 @@ func (g *Game) initButtons() {
 	infoBtn := &Button{}
 	infoBtn.Init(10, infoBarY+45, 80, 30, "Info", handleInfoClick)
 	infoBtn.Color = color.RGBA{R: 100, G: 100, B: 200, A: 255} // Blue
-	infoBtn.States[PhaseBuild] = ButtonState{Text: "Info", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
-	infoBtn.States[PhaseRoundEnd] = ButtonState{Text: "Info", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
+	infoBtn.States[PhaseBuild] = &ButtonState{Text: "Info", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
+	infoBtn.States[PhaseRoundEnd] = &ButtonState{Text: "Info", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
 	infoBtn.Font = g.font
 	g.state.buttons["info"] = infoBtn // Close info button
 	closeInfoBtn := &Button{}
 	closeInfoBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Close", handleCloseInfoClick)
 	closeInfoBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
-	closeInfoBtn.States[PhaseInfo] = ButtonState{Text: "Close", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
+	closeInfoBtn.States[PhaseInfo] = &ButtonState{Text: "Close", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
 	closeInfoBtn.Font = g.font
 	g.state.buttons["close_info"] = closeInfoBtn
 
@@ -590,7 +567,7 @@ func (g *Game) initButtons() {
 	restockX := gridRightEdge - 2*g.cellSize - g.gridMargin - 80 - g.gridMargin - 80 - g.gridMargin
 	restockBtn.Init(restockX, g.availableY+g.cellSize+g.gridMargin, 80, 30, "Restock", handleRestockClick)
 	restockBtn.Color = color.RGBA{R: 200, G: 100, B: 200, A: 255} // Purple
-	restockBtn.States[PhaseBuild] = ButtonState{Text: "Restock", Color: color.RGBA{R: 200, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
+	restockBtn.States[PhaseBuild] = &ButtonState{Text: "Restock", Color: color.RGBA{R: 200, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
 	restockBtn.Font = g.font
 	g.state.buttons["restock"] = restockBtn
 
@@ -599,13 +576,13 @@ func (g *Game) initButtons() {
 	sellX := gridRightEdge - 3*buttonSize - 2*5
 	sellBtn.Init(sellX, g.availableY+g.cellSize+g.gridMargin+10, buttonSize, buttonSize, "Sell", handleSellClick)
 	sellBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
-	sellBtn.States[PhaseBuild] = ButtonState{Text: "Sell", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
+	sellBtn.States[PhaseBuild] = &ButtonState{Text: "Sell", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
 	sellBtn.Font = g.font
 	g.state.buttons["sell"] = sellBtn
 	popupRestartBtn := &Button{}
 	popupRestartBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Restart", handleRestartClick)
 	popupRestartBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
-	popupRestartBtn.States[PhaseGameOver] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
+	popupRestartBtn.States[PhaseGameOver] = &ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	popupRestartBtn.Font = g.font
 	g.state.buttons["popup_restart"] = popupRestartBtn
 }

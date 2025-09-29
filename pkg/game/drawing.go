@@ -1,11 +1,9 @@
 package game
 
 import (
-	"fmt"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
@@ -17,28 +15,28 @@ func (g *Game) drawScanlines(screen *ebiten.Image) {
 	}
 }
 
-func (g *Game) drawUI(screen *ebiten.Image) {
-	// Top panel - Total Score, Money, Round Target, Run, Round
-	vector.DrawFilledRect(screen, 0, float32(g.topPanelY), float32(g.screenWidth), float32(g.topPanelHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Total Score: %d", g.state.totalScore), 20, g.topPanelY+10)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Money: $%d", g.state.money), 20, g.topPanelY+30)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round Target: %d", g.state.targetScore), 200, g.topPanelY+10)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Runs Left: %d", g.state.runsLeft), 200, g.topPanelY+30)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round: %d", g.state.round), 200, g.topPanelY+50)
+// func (g *Game) drawUI(screen *ebiten.Image) {
+// 	// Top panel - Total Score, Money, Round Target, Run, Round
+// 	vector.DrawFilledRect(screen, 0, float32(g.topPanelY), float32(g.screenWidth), float32(g.topPanelHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
+// 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Total Score: %d", g.state.totalScore), 20, g.topPanelY+10)
+// 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Money: $%d", g.state.money), 20, g.topPanelY+30)
+// 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round Target: %d", g.state.targetScore), 200, g.topPanelY+10)
+// 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Runs Left: %d", g.state.runsLeft), 200, g.topPanelY+30)
+// 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Round: %d", g.state.round), 200, g.topPanelY+50)
 
-	// Bottom Panel
-	vector.DrawFilledRect(screen, 0, float32(g.bottomY), float32(g.screenWidth), float32(g.bottomHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
+// 	// Bottom Panel
+// 	vector.DrawFilledRect(screen, 0, float32(g.bottomY), float32(g.screenWidth), float32(g.bottomHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
 
-	// Current Run Score (centered in the middle)
-	scoreText := fmt.Sprintf("Run Score: %d x %d", g.state.roundScore, g.state.multiplier)
-	scoreX := (g.screenWidth - len(scoreText)*6) / 2 // Approximate centering, assuming ~6px per char
-	ebitenutil.DebugPrintAt(screen, scoreText, scoreX, g.bottomY+20)
+// 	// Current Run Score (centered in the middle)
+// 	scoreText := fmt.Sprintf("Run Score: %d x %d", g.state.roundScore, g.state.multiplier)
+// 	scoreX := (g.screenWidth - len(scoreText)*6) / 2 // Approximate centering, assuming ~6px per char
+// 	ebitenutil.DebugPrintAt(screen, scoreText, scoreX, g.bottomY+20)
 
-	// Render all buttons
-	for _, button := range g.state.buttons {
-		button.Render(screen, g.state)
-	}
-}
+// 	// Render all buttons
+// 	for _, button := range g.state.buttons {
+// 		button.Render(screen, g.state)
+// 	}
+// }
 
 func (g *Game) drawFactoryFloor(screen *ebiten.Image) {
 	for r := 0; r < displayRows; r++ {
@@ -127,76 +125,76 @@ func (g *Game) drawRotateArrow(screen *ebiten.Image, x, y, width, height int, le
 	}
 }
 
-func (g *Game) drawMachines(screen *ebiten.Image) {
-	// Machines on the grid
-	for pos, ms := range g.state.machines {
-		if ms == nil || ms.Machine == nil || ms.BeingDragged {
-			continue
-		}
-		col := pos % gridCols
-		row := pos / gridCols
-		if row < 1 || row > displayRows || col < 1 || col > displayCols {
-			continue
-		}
-		x := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin)
-		y := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
-		vector.DrawFilledRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), ms.Machine.GetColor(), false)
+// func (g *Game) drawMachines(screen *ebiten.Image) {
+// 	// Machines on the grid
+// 	for pos, ms := range g.state.machines {
+// 		if ms == nil || ms.Machine == nil || ms.BeingDragged {
+// 			continue
+// 		}
+// 		col := pos % gridCols
+// 		row := pos / gridCols
+// 		if row < 1 || row > displayRows || col < 1 || col > displayCols {
+// 			continue
+// 		}
+// 		x := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin)
+// 		y := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
+// 		vector.DrawFilledRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), ms.Machine.GetColor(), false)
 
-		if ms.Machine.GetType() == MachineEnd {
-			ebitenutil.DebugPrintAt(screen, "End", int(x)+15, int(y)+20)
-		}
-		g.drawArrow(screen, float32(x), float32(y), ms.Orientation)
-		if ms.Selected {
-			vector.StrokeRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), 3, color.RGBA{R: 255, G: 255, B: 0, A: 255}, false)
-		}
-	}
+// 		if ms.Machine.GetType() == MachineEnd {
+// 			ebitenutil.DebugPrintAt(screen, "End", int(x)+15, int(y)+20)
+// 		}
+// 		g.drawArrow(screen, float32(x), float32(y), ms.Orientation)
+// 		if ms.Selected {
+// 			vector.StrokeRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), 3, color.RGBA{R: 255, G: 255, B: 0, A: 255}, false)
+// 		}
+// 	}
 
-	// Available machines
-	for i, ms := range g.state.inventory {
-		if ms != nil && !ms.BeingDragged && ms.Machine != nil {
-			row := i / 7
-			col := i % 7
-			x := g.gridStartX + col*(g.cellSize+g.gridMargin)
-			y := g.availableY + row*(g.cellSize+g.gridMargin)
-			vector.DrawFilledRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), ms.Machine.GetColor(), false)
-			if g.state.inventorySelected[i] {
-				vector.StrokeRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), 3, color.RGBA{R: 255, G: 255, B: 0, A: 255}, false)
-			}
-		}
-	}
+// 	// Available machines
+// 	for i, ms := range g.state.inventory {
+// 		if ms != nil && !ms.BeingDragged && ms.Machine != nil {
+// 			row := i / 7
+// 			col := i % 7
+// 			x := g.gridStartX + col*(g.cellSize+g.gridMargin)
+// 			y := g.availableY + row*(g.cellSize+g.gridMargin)
+// 			vector.DrawFilledRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), ms.Machine.GetColor(), false)
+// 			if g.state.inventorySelected[i] {
+// 				vector.StrokeRect(screen, float32(x), float32(y), float32(g.cellSize), float32(g.cellSize), 3, color.RGBA{R: 255, G: 255, B: 0, A: 255}, false)
+// 			}
+// 		}
+// 	}
 
-	// Rotation buttons
-	g.state.buttons["rotate_left"].Render(screen, g.state)
-	g.state.buttons["rotate_right"].Render(screen, g.state)
-}
+// 	// // Rotation buttons
+// 	// g.state.buttons["rotate_left"].Render(screen, g.state)
+// 	// g.state.buttons["rotate_right"].Render(screen, g.state)
+// }
 
-func (g *Game) drawObjects(screen *ebiten.Image) {
-	for _, obj := range g.state.objects {
-		objColor := color.RGBA{R: 255, A: 255}
-		switch obj.Type {
-		case ObjectGreen:
-			objColor.G = 255
-		case ObjectBlue:
-			objColor.B = 255
-		}
-		gridX := obj.GridPosition % gridCols
-		gridY := obj.GridPosition / gridCols
-		if gridY < 1 || gridY > displayRows || gridX < 1 || gridX > displayCols {
-			continue
-		}
-		x := g.gridStartX + (gridX-1)*(g.cellSize+g.gridMargin) + g.cellSize/2
-		y := g.gridStartY + (gridY-1)*(g.cellSize+g.gridMargin) + g.cellSize/2
-		vector.DrawFilledCircle(screen, float32(x), float32(y), 10, objColor, false)
-	}
+// func (g *Game) drawObjects(screen *ebiten.Image) {
+// 	for _, obj := range g.state.objects {
+// 		objColor := color.RGBA{R: 255, A: 255}
+// 		switch obj.Type {
+// 		case ObjectGreen:
+// 			objColor.G = 255
+// 		case ObjectBlue:
+// 			objColor.B = 255
+// 		}
+// 		gridX := obj.GridPosition % gridCols
+// 		gridY := obj.GridPosition / gridCols
+// 		if gridY < 1 || gridY > displayRows || gridX < 1 || gridX > displayCols {
+// 			continue
+// 		}
+// 		x := g.gridStartX + (gridX-1)*(g.cellSize+g.gridMargin) + g.cellSize/2
+// 		y := g.gridStartY + (gridY-1)*(g.cellSize+g.gridMargin) + g.cellSize/2
+// 		vector.DrawFilledCircle(screen, float32(x), float32(y), 10, objColor, false)
+// 	}
 
-	// Draw animations
-	for _, anim := range g.state.animations {
-		progress := anim.Elapsed / anim.Duration
-		if progress > 1 {
-			progress = 1
-		}
-		x := anim.StartX + (anim.EndX-anim.StartX)*progress
-		y := anim.StartY + (anim.EndY-anim.StartY)*progress
-		vector.DrawFilledCircle(screen, float32(x), float32(y), 10, anim.Color, false)
-	}
-}
+// 	// Draw animations
+// 	for _, anim := range g.state.animations {
+// 		progress := anim.Elapsed / anim.Duration
+// 		if progress > 1 {
+// 			progress = 1
+// 		}
+// 		x := anim.StartX + (anim.EndX-anim.StartX)*progress
+// 		y := anim.StartY + (anim.EndY-anim.StartY)*progress
+// 		vector.DrawFilledCircle(screen, float32(x), float32(y), 10, anim.Color, false)
+// 	}
+// }
