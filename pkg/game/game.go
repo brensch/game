@@ -270,13 +270,13 @@ func NewGame(width, height int) *Game {
 		&Processor{},
 		&Processor{},
 		&Miner{},
-		// &Miner{},
-		// &Splitter{},
-		// &GeneralConsumer{},
-		// &Amplifier{},
-		// &Combiner{},
-		// &Booster{},
-		// &Catalyst{},
+		&Miner{},
+		&Splitter{},
+		&GeneralConsumer{},
+		&Amplifier{},
+		&Combiner{},
+		&Booster{},
+		&Catalyst{},
 	}
 	state.inventorySize = 5
 	state.restocksLeft = 3
