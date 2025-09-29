@@ -85,14 +85,14 @@ func (g *Game) handleDragAndDrop() {
 	if g.lastInput.JustPressed {
 
 		// Check rotation buttons first
-		if g.state.buttons["rotate_left"].IsClicked(g.lastInput, g.state.phase) {
+		if g.state.buttons["rotate_left"].IsClicked(g.lastInput, g.state) {
 			selected := g.getSelectedMachine()
 			if selected != nil {
 				selected.Orientation = (selected.Orientation + 3) % 4
 			}
 			return
 		}
-		if g.state.buttons["rotate_right"].IsClicked(g.lastInput, g.state.phase) {
+		if g.state.buttons["rotate_right"].IsClicked(g.lastInput, g.state) {
 			selected := g.getSelectedMachine()
 			if selected != nil {
 				selected.Orientation = (selected.Orientation + 1) % 4
@@ -101,7 +101,7 @@ func (g *Game) handleDragAndDrop() {
 		}
 
 		// Check restock button
-		if g.state.buttons["restock"].IsClicked(g.lastInput, g.state.phase) {
+		if g.state.buttons["restock"].IsClicked(g.lastInput, g.state) {
 			if g.state.restocksLeft > 0 {
 				selectedIndices := []int{}
 				for i, sel := range g.state.inventorySelected {
@@ -133,7 +133,7 @@ func (g *Game) handleDragAndDrop() {
 		}
 
 		// Check sell button
-		if g.state.buttons["sell"].IsClicked(g.lastInput, g.state.phase) {
+		if g.state.buttons["sell"].IsClicked(g.lastInput, g.state) {
 			selected := g.getSelectedMachine()
 			if selected != nil && selected.IsPlaced && selected.RunAdded == g.state.runsLeft && selected.Machine.GetType() != MachineEnd {
 				g.state.money += selected.Machine.GetCost()

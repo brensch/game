@@ -3,7 +3,6 @@ package game
 import (
 	"fmt"
 	"image/color"
-	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -37,7 +36,7 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 
 	// Render all buttons
 	for _, button := range g.state.buttons {
-		button.Render(screen, g.state.phase)
+		button.Render(screen, g.state)
 	}
 }
 
@@ -167,8 +166,8 @@ func (g *Game) drawMachines(screen *ebiten.Image) {
 	}
 
 	// Rotation buttons
-	g.state.buttons["rotate_left"].Render(screen, g.state.phase)
-	g.state.buttons["rotate_right"].Render(screen, g.state.phase)
+	g.state.buttons["rotate_left"].Render(screen, g.state)
+	g.state.buttons["rotate_right"].Render(screen, g.state)
 }
 
 func (g *Game) drawObjects(screen *ebiten.Image) {
@@ -200,127 +199,4 @@ func (g *Game) drawObjects(screen *ebiten.Image) {
 		y := anim.StartY + (anim.EndY-anim.StartY)*progress
 		vector.DrawFilledCircle(screen, float32(x), float32(y), 10, anim.Color, false)
 	}
-}
-
-func (g *Game) drawTooltips(screen *ebiten.Image) {
-	cx, cy := GetCursorPosition()
-
-	// Check for selected machine first
-	selected := g.getSelectedMachine()
-	if selected != nil {
-		// Find position of selected machine
-		for pos, ms := range g.state.machines {
-			if ms == selected {
-				col := pos % gridCols
-				row := pos / gridCols
-				if row >= 1 && row <= displayRows && col >= 1 && col <= displayCols {
-					x := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin) + g.cellSize/2
-					y := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
-					g.drawTooltip(screen, selected.Machine.GetName(), selected.Machine.GetDescription(), selected.Machine.GetCost(), x, y-10)
-					return
-				}
-			}
-		}
-		// Check available machines
-		for i, ms := range g.state.inventory {
-			if ms == selected {
-				x := g.gridStartX + i*(g.cellSize+g.gridMargin) + g.cellSize/2
-				y := g.availableY + g.cellSize
-				g.drawTooltip(screen, selected.Machine.GetName(), selected.Machine.GetDescription(), selected.Machine.GetCost(), x, y+10)
-				return
-			}
-		}
-	}
-
-	// Check for hover on grid machines
-	if ms := g.getMachineAt(cx, cy); ms != nil {
-		col := (cx - g.gridStartX) / (g.cellSize + g.gridMargin)
-		row := (cy - g.gridStartY) / (g.cellSize + g.gridMargin)
-		x := g.gridStartX + col*(g.cellSize+g.gridMargin) + g.cellSize/2
-		y := g.gridStartY + row*(g.cellSize+g.gridMargin)
-		g.drawTooltip(screen, ms.Machine.GetName(), ms.Machine.GetDescription(), ms.Machine.GetCost(), x, y-10)
-		return
-	}
-
-	// Check for hover on available machines
-	for i, ms := range g.state.inventory {
-		row := i / 7
-		col := i % 7
-		x := g.gridStartX + col*(g.cellSize+g.gridMargin)
-		y := g.availableY + row*(g.cellSize+g.gridMargin)
-		if cx >= x && cx <= x+g.cellSize && cy >= y && cy <= y+g.cellSize {
-			g.drawTooltip(screen, ms.Machine.GetName(), ms.Machine.GetDescription(), ms.Machine.GetCost(), x+g.cellSize/2, y+g.cellSize+10)
-			return
-		}
-	}
-}
-
-func (g *Game) drawTooltip(screen *ebiten.Image, name, text string, cost int, x, y int) {
-	// Create tooltip text with name, description and cost
-	costText := fmt.Sprintf("Cost: $%d", cost)
-
-	// Wrap description text to fit within 300px width
-	maxWidthPx := 300
-	charWidth := 6
-	maxCharsPerLine := maxWidthPx / charWidth
-	wrappedLines := g.wrapText(text, maxCharsPerLine)
-
-	// Calculate box dimensions
-	boxWidth := maxWidthPx + 20                      // Fixed width
-	boxHeight := 15 + len(wrappedLines)*15 + 15 + 20 // Name + lines + cost + padding
-
-	// Position box above the point
-	boxX := x - boxWidth/2
-	boxY := y - boxHeight - 5
-
-	// Ensure box stays on screen
-	if boxX < 10 {
-		boxX = 10
-	}
-	if boxX+boxWidth > g.screenWidth-10 {
-		boxX = g.screenWidth - boxWidth - 10
-	}
-	if boxY < 10 {
-		boxY = y + 15 // show below if above goes off screen
-	}
-
-	// Draw background
-	vector.DrawFilledRect(screen, float32(boxX), float32(boxY), float32(boxWidth), float32(boxHeight), color.RGBA{R: 0, G: 0, B: 0, A: 200}, false)
-	// Draw border
-	vector.StrokeRect(screen, float32(boxX), float32(boxY), float32(boxWidth), float32(boxHeight), 2, color.RGBA{R: 255, G: 255, B: 255, A: 255}, false)
-
-	// Draw name in bold or larger (just print it)
-	ebitenutil.DebugPrintAt(screen, name, boxX+10, boxY+8)
-	lineY := boxY + 23
-	// Draw wrapped description lines
-	for _, line := range wrappedLines {
-		ebitenutil.DebugPrintAt(screen, line, boxX+10, lineY)
-		lineY += 15
-	}
-	// Draw cost on next line
-	ebitenutil.DebugPrintAt(screen, costText, boxX+10, lineY)
-}
-
-func (g *Game) wrapText(text string, maxChars int) []string {
-	words := strings.Fields(text)
-	var lines []string
-	var currentLine string
-
-	for _, word := range words {
-		if len(currentLine)+len(word)+1 <= maxChars {
-			if currentLine != "" {
-				currentLine += " "
-			}
-			currentLine += word
-		} else {
-			if currentLine != "" {
-				lines = append(lines, currentLine)
-			}
-			currentLine = word
-		}
-	}
-	if currentLine != "" {
-		lines = append(lines, currentLine)
-	}
-	return lines
 }

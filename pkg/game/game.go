@@ -138,10 +138,11 @@ type Button struct {
 	Font                font.Face
 	States              map[GamePhase]ButtonState
 	CustomRender        func(screen *ebiten.Image, b *Button, phase GamePhase)
+	OnClick             func(g *Game, input InputState) // Click handler function
 }
 
-// Init initializes the button with dimensions.
-func (b *Button) Init(x, y, width, height int, text string) {
+// Init initializes the button with dimensions and click handler.
+func (b *Button) Init(x, y, width, height int, text string, onClick func(g *Game, input InputState)) {
 	b.X = x
 	b.Y = y
 	b.Width = width
@@ -150,11 +151,12 @@ func (b *Button) Init(x, y, width, height int, text string) {
 	b.Disabled = false
 	b.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Default green
 	b.States = make(map[GamePhase]ButtonState)
+	b.OnClick = onClick
 }
 
 // Render draws the button on the screen.
-func (b *Button) Render(screen *ebiten.Image, phase GamePhase) {
-	state := b.States[phase]
+func (b *Button) Render(screen *ebiten.Image, gameState *GameState) {
+	state := b.States[gameState.phase]
 	if !state.Visible {
 		return
 	}
@@ -165,15 +167,15 @@ func (b *Button) Render(screen *ebiten.Image, phase GamePhase) {
 	vector.DrawFilledRect(screen, float32(b.X), float32(b.Y), float32(b.Width), float32(b.Height), btnColor, false)
 
 	if b.CustomRender != nil {
-		b.CustomRender(screen, b, phase)
+		b.CustomRender(screen, b, gameState.phase)
 	} else {
 		text.Draw(screen, state.Text, b.Font, b.X+5, b.Y+b.Height/2+5, color.Black)
 	}
 }
 
 // IsClicked checks if the button was clicked using the input state.
-func (b *Button) IsClicked(input InputState, phase GamePhase) bool {
-	state := b.States[phase]
+func (b *Button) IsClicked(input InputState, gameState *GameState) bool {
+	state := b.States[gameState.phase]
 	if !state.Visible || state.Disabled {
 		return false
 	}
@@ -184,6 +186,13 @@ func (b *Button) IsClicked(input InputState, phase GamePhase) bool {
 	return false
 }
 
+// HandleClick processes click events for this button.
+func (b *Button) HandleClick(g *Game, input InputState) {
+	if b.IsClicked(input, g.state) && b.OnClick != nil {
+		b.OnClick(g, input)
+	}
+}
+
 // Game implements ebiten.Game.
 type Game struct {
 	state                                                                       *GameState
@@ -192,7 +201,7 @@ type Game struct {
 	topPanelY, foremanY, gridStartY, availableY, bottomY                        int
 	screenWidth, gridStartX                                                     int
 	cellSize, gridMargin                                                        int
-	lastSelected                                                               *MachineState
+	lastSelected                                                                *MachineState
 
 	vignetteImage *ebiten.Image
 	font          font.Face
@@ -290,11 +299,133 @@ func NewGame(width, height int) *Game {
 	return g
 }
 
+// Button click handlers
+func handleRestartClick(g *Game, input InputState) {
+	// Reset game state
+	g.state = &GameState{
+		phase:          PhaseBuild,
+		money:          10,
+		runsLeft:       6,
+		machines:       make([]*MachineState, gridCols*gridRows),
+		round:          1,
+		animations:     []*Animation{},
+		animationTick:  0,
+		animationSpeed: 1.0,
+		buttons:        make(map[string]*Button),
+		allChanges:     nil,
+		multiplier:     1,
+		multMult:       1,
+		roundScore:     0,
+		totalScore:     0,
+		targetScore:    10,
+		gameOver:       false,
+		endRunDelay:    0,
+		previousPhase:  PhaseBuild,
+	}
+	g.initButtons()
+	// Place random End machine
+	endRow := 1 + rand.Intn(displayRows)
+	endCol := 1 + rand.Intn(displayCols)
+	endPos := endRow*gridCols + endCol
+	g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
+	g.state.inventory = []*MachineState{
+		{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+		{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+		{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
+	}
+}
+
+func handleRunClick(g *Game, input InputState) {
+	if g.state.phase == PhaseBuild {
+		g.state.phase = PhaseRun
+		g.state.allChanges = nil
+		g.state.animations = []*Animation{}
+		g.state.animationTick = 0
+		g.state.animationSpeed = 1.0
+		g.state.endRunDelay = 0
+		go func() {
+			changes, _ := SimulateRun(g.state.machines)
+			g.state.allChanges = changes
+		}()
+	}
+}
+
+func handleSellClick(g *Game, input InputState) {
+	selected := g.getSelectedMachine()
+	if selected != nil && selected.IsPlaced && selected.Machine.GetType() != MachineEnd {
+		// Remove from grid
+		for pos, ms := range g.state.machines {
+			if ms == selected {
+				g.state.machines[pos] = nil
+				break
+			}
+		}
+		// Deselect
+		selected.Selected = false
+	}
+}
+
+func handleNextRoundClick(g *Game, input InputState) {
+	if g.state.phase == PhaseRoundEnd {
+		// Advance to next round
+		g.state.phase = PhaseBuild
+		g.state.runsLeft = 6
+		g.state.round++
+		g.state.targetScore = g.state.round * g.state.round * 10
+		g.state.money += g.state.round * 10
+		// Reset machines: keep only End, clear others
+		var endMachine *MachineState
+		for _, ms := range g.state.machines {
+			if ms != nil && ms.Machine.GetType() == MachineEnd {
+				endMachine = ms
+				endMachine.IsPlaced = true
+				endMachine.RunAdded = g.state.runsLeft
+				break
+			}
+		}
+		g.state.machines = make([]*MachineState, gridCols*gridRows)
+		if endMachine != nil {
+			// Place End at a random position
+			endRow := 1 + rand.Intn(displayRows)
+			endCol := 1 + rand.Intn(displayCols)
+			endPos := endRow*gridCols + endCol
+			g.state.machines[endPos] = endMachine
+		}
+		// Reset available machines
+		g.state.inventory = dealMachines(g.state.catalogue, g.state.inventorySize, g.state.runsLeft)
+		g.state.inventorySelected = make([]bool, len(g.state.inventory))
+		g.state.restocksLeft = 3
+	}
+}
+
+func handleInfoClick(g *Game, input InputState) {
+	if g.state.phase == PhaseBuild || g.state.phase == PhaseRoundEnd {
+		g.state.previousPhase = g.state.phase
+		g.state.phase = PhaseInfo
+	}
+}
+
+func handleCloseInfoClick(g *Game, input InputState) {
+	g.state.phase = g.state.previousPhase
+}
+
+func handleRotateLeftClick(g *Game, input InputState) {
+	// TODO: Implement rotate left functionality
+}
+
+func handleRotateRightClick(g *Game, input InputState) {
+	// TODO: Implement rotate right functionality
+}
+
+func handleRestockClick(g *Game, input InputState) {
+	// TODO: Implement restock functionality
+}
+
 func (g *Game) initButtons() {
 	// Restart button
 	restartBtn := &Button{}
 	infoBarY := g.height - g.infoBarHeight
-	restartBtn.Init(10, infoBarY+5, 80, 30, "Restart")
+	restartBtn.Init(10, infoBarY+5, 80, 30, "Restart", handleRestartClick)
 	restartBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
 	restartBtn.States[PhaseBuild] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	restartBtn.States[PhaseRun] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
@@ -304,7 +435,7 @@ func (g *Game) initButtons() {
 
 	// Start Run button
 	runBtn := &Button{}
-	runBtn.Init(g.screenWidth-10-buttonWidth, g.bottomY+10, buttonWidth, g.bottomHeight-20, "Start Run")
+	runBtn.Init(g.screenWidth-10-buttonWidth, g.bottomY+10, buttonWidth, g.bottomHeight-20, "Start Run", handleRunClick)
 	runBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
 	runBtn.States[PhaseBuild] = ButtonState{Text: "Start Run", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
 	runBtn.States[PhaseRun] = ButtonState{Text: "Running", Color: color.RGBA{R: 200, G: 200, B: 100, A: 255}, Disabled: true, Visible: true}
@@ -316,10 +447,10 @@ func (g *Game) initButtons() {
 	gridRightEdge := g.gridStartX + displayCols*g.cellSize + (displayCols-1)*g.gridMargin
 	counterclockwiseX := gridRightEdge - 2*g.cellSize - g.gridMargin
 	counterclockwiseY := g.availableY + g.cellSize + g.gridMargin
-	rotateLeftBtn.Init(counterclockwiseX, counterclockwiseY, g.cellSize, g.cellSize, "<-")
+	rotateLeftBtn.Init(counterclockwiseX, counterclockwiseY, g.cellSize, g.cellSize, "<-", handleRotateLeftClick)
 	rotateLeftBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
 	rotateLeftBtn.States[PhaseBuild] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
-	rotateLeftBtn.States[PhaseRun] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
+	rotateLeftBtn.States[PhaseRun] = ButtonState{Text: "<-", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
 	rotateLeftBtn.Font = g.font
 	rotateLeftBtn.CustomRender = func(screen *ebiten.Image, b *Button, phase GamePhase) {
 		g.drawRotateArrow(screen, b.X, b.Y, b.Width, b.Height, true)
@@ -330,10 +461,10 @@ func (g *Game) initButtons() {
 	rotateRightBtn := &Button{}
 	clockwiseX := gridRightEdge - g.cellSize
 	clockwiseY := g.availableY + g.cellSize + g.gridMargin
-	rotateRightBtn.Init(clockwiseX, clockwiseY, g.cellSize, g.cellSize, "->")
+	rotateRightBtn.Init(clockwiseX, clockwiseY, g.cellSize, g.cellSize, "->", handleRotateRightClick)
 	rotateRightBtn.Color = color.RGBA{R: 100, G: 100, B: 200, A: 255} // Blue
 	rotateRightBtn.States[PhaseBuild] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
-	rotateRightBtn.States[PhaseRun] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
+	rotateRightBtn.States[PhaseRun] = ButtonState{Text: "->", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
 	rotateRightBtn.Font = g.font
 	rotateRightBtn.CustomRender = func(screen *ebiten.Image, b *Button, phase GamePhase) {
 		g.drawRotateArrow(screen, b.X, b.Y, b.Width, b.Height, false)
@@ -342,7 +473,7 @@ func (g *Game) initButtons() {
 
 	// Next Round button
 	nextRoundBtn := &Button{}
-	nextRoundBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Next Round")
+	nextRoundBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Next Round", handleNextRoundClick)
 	nextRoundBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
 	nextRoundBtn.States[PhaseRoundEnd] = ButtonState{Text: "Next Round", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
 	nextRoundBtn.Font = g.font
@@ -350,14 +481,14 @@ func (g *Game) initButtons() {
 
 	// Info button
 	infoBtn := &Button{}
-	infoBtn.Init(10, infoBarY+45, 80, 30, "Info")
+	infoBtn.Init(10, infoBarY+45, 80, 30, "Info", handleInfoClick)
 	infoBtn.Color = color.RGBA{R: 100, G: 100, B: 200, A: 255} // Blue
 	infoBtn.States[PhaseBuild] = ButtonState{Text: "Info", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
 	infoBtn.States[PhaseRoundEnd] = ButtonState{Text: "Info", Color: color.RGBA{R: 100, G: 100, B: 200, A: 255}, Disabled: false, Visible: true}
 	infoBtn.Font = g.font
 	g.state.buttons["info"] = infoBtn // Close info button
 	closeInfoBtn := &Button{}
-	closeInfoBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Close")
+	closeInfoBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Close", handleCloseInfoClick)
 	closeInfoBtn.Color = color.RGBA{R: 100, G: 200, B: 100, A: 255} // Green
 	closeInfoBtn.States[PhaseInfo] = ButtonState{Text: "Close", Color: color.RGBA{R: 100, G: 200, B: 100, A: 255}, Disabled: false, Visible: true}
 	closeInfoBtn.Font = g.font
@@ -366,7 +497,7 @@ func (g *Game) initButtons() {
 	// Restock button
 	restockBtn := &Button{}
 	restockX := gridRightEdge - 2*g.cellSize - g.gridMargin - 80 - g.gridMargin - 80 - g.gridMargin
-	restockBtn.Init(restockX, g.availableY+g.cellSize+g.gridMargin, 80, 30, "Restock")
+	restockBtn.Init(restockX, g.availableY+g.cellSize+g.gridMargin, 80, 30, "Restock", handleRestockClick)
 	restockBtn.Color = color.RGBA{R: 200, G: 100, B: 200, A: 255} // Purple
 	restockBtn.States[PhaseBuild] = ButtonState{Text: "Restock", Color: color.RGBA{R: 200, G: 100, B: 200, A: 255}, Disabled: false, Visible: false}
 	restockBtn.Font = g.font
@@ -375,13 +506,13 @@ func (g *Game) initButtons() {
 	// Sell button
 	sellBtn := &Button{}
 	sellX := gridRightEdge - 2*g.cellSize - g.gridMargin - 80 - g.gridMargin
-	sellBtn.Init(sellX, g.availableY+g.cellSize+g.gridMargin, 80, 30, "Sell")
+	sellBtn.Init(sellX, g.availableY+g.cellSize+g.gridMargin, 80, 30, "Sell", handleSellClick)
 	sellBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
 	sellBtn.States[PhaseBuild] = ButtonState{Text: "Sell", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
 	sellBtn.Font = g.font
 	g.state.buttons["sell"] = sellBtn
 	popupRestartBtn := &Button{}
-	popupRestartBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Restart")
+	popupRestartBtn.Init(g.screenWidth/2-50, g.height/2+50, 100, 30, "Restart", handleRestartClick)
 	popupRestartBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
 	popupRestartBtn.States[PhaseGameOver] = ButtonState{Text: "Restart", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: true}
 	popupRestartBtn.Font = g.font
@@ -449,6 +580,85 @@ func (g *Game) getPos(ms *MachineState) int {
 	return -1
 }
 
+// updateButtonPositions updates dynamic button positions based on selected machines.
+func (g *Game) updateButtonPositions() {
+	selected := g.getSelectedMachine()
+	if selected == nil || !selected.IsPlaced || selected.Machine.GetType() == MachineEnd {
+		return
+	}
+
+	// Find the position of the selected machine
+	for pos, ms := range g.state.machines {
+		if ms == selected {
+			col := pos % gridCols
+			row := pos / gridCols
+			if row >= 1 && row <= displayRows && col >= 1 && col <= displayCols {
+				// Calculate screen position of the selected machine
+				machineX := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin)
+				machineY := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
+
+				// Position buttons below the selected machine
+				buttonY := machineY + g.cellSize + g.gridMargin
+
+				// Update rotate left button
+				if rotateLeft, exists := g.state.buttons["rotate_left"]; exists {
+					rotateLeft.X = machineX
+					rotateLeft.Y = buttonY
+				}
+
+				// Update rotate right button
+				if rotateRight, exists := g.state.buttons["rotate_right"]; exists {
+					rotateRight.X = machineX + g.cellSize + g.gridMargin
+					rotateRight.Y = buttonY
+				}
+
+				// Update sell button
+				if sellBtn, exists := g.state.buttons["sell"]; exists {
+					sellBtn.X = machineX + 2*(g.cellSize+g.gridMargin)
+					sellBtn.Y = buttonY
+				}
+			}
+			break
+		}
+	}
+}
+
+// updateButtonVisibility updates dynamic button visibility based on game state.
+func (g *Game) updateButtonVisibility() {
+	selected := g.getSelectedMachine()
+	hasMachineSelected := selected != nil && selected.IsPlaced && selected.Machine.GetType() != MachineEnd
+
+	// Update rotate buttons visibility
+	if rotateLeft, exists := g.state.buttons["rotate_left"]; exists {
+		if state, hasState := rotateLeft.States[g.state.phase]; hasState {
+			state.Visible = hasMachineSelected
+			rotateLeft.States[g.state.phase] = state
+		}
+	}
+
+	if rotateRight, exists := g.state.buttons["rotate_right"]; exists {
+		if state, hasState := rotateRight.States[g.state.phase]; hasState {
+			state.Visible = hasMachineSelected
+			rotateRight.States[g.state.phase] = state
+		}
+	}
+
+	// Update sell button visibility
+	if sellBtn, exists := g.state.buttons["sell"]; exists {
+		if state, hasState := sellBtn.States[g.state.phase]; hasState {
+			state.Visible = hasMachineSelected
+			sellBtn.States[g.state.phase] = state
+		}
+	}
+}
+
+// processButtons processes all button clicks using their individual handlers.
+func (g *Game) processButtons() {
+	for _, button := range g.state.buttons {
+		button.HandleClick(g, g.lastInput)
+	}
+}
+
 // Update proceeds the game state.
 func (g *Game) Update() error {
 	g.GetInput()
@@ -462,146 +672,12 @@ func (g *Game) Update() error {
 		// Handle round end phase
 	}
 
-	// Check button clicks
-	if g.state.buttons["run"].IsClicked(g.lastInput, g.state.phase) {
-		if g.state.phase == PhaseBuild {
-			g.state.phase = PhaseRun
-			g.state.allChanges = nil
-			g.state.animations = []*Animation{}
-			g.state.animationTick = 0
-			g.state.animationSpeed = 1.0
-			g.state.endRunDelay = 0
-			go func() {
-				changes, _ := SimulateRun(g.state.machines)
-				g.state.allChanges = changes
-			}()
-		}
-	}
-	if g.state.buttons["restart"].IsClicked(g.lastInput, g.state.phase) {
-		// Reset game state
-		g.state = &GameState{
-			phase:          PhaseBuild,
-			money:          10,
-			runsLeft:       6,
-			machines:       make([]*MachineState, gridCols*gridRows),
-			round:          1,
-			animations:     []*Animation{},
-			animationTick:  0,
-			animationSpeed: 1.0,
-			buttons:        make(map[string]*Button),
-			allChanges:     nil,
-			multiplier:     1,
-			roundScore:     0,
-			totalScore:     0,
-			targetScore:    10,
-			gameOver:       false,
-			endRunDelay:    0,
-			previousPhase:  PhaseBuild,
-		}
-		g.initButtons()
-		// Place random End machine
-		endRow := 1 + rand.Intn(displayRows)
-		endCol := 1 + rand.Intn(displayCols)
-		endPos := endRow*gridCols + endCol
-		g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
-		g.state.inventory = []*MachineState{
-			{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-			{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-			{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-		}
-	}
-	if g.state.buttons["sell"].IsClicked(g.lastInput, g.state.phase) {
-		selected := g.getSelectedMachine()
-		if selected != nil && selected.IsPlaced && selected.Machine.GetType() != MachineEnd {
-			// Remove from grid
-			for pos, ms := range g.state.machines {
-				if ms == selected {
-					g.state.machines[pos] = nil
-					break
-				}
-			}
-			// Deselect
-			selected.Selected = false
-		}
-	}
+	// Update button visibility and positions based on current state
+	g.updateButtonVisibility()
+	g.updateButtonPositions()
 
-	if g.state.buttons["next_round"].IsClicked(g.lastInput, g.state.phase) {
-		if g.state.phase == PhaseRoundEnd {
-			// Advance to next round
-			g.state.phase = PhaseBuild
-			g.state.runsLeft = 6
-			g.state.round++
-			g.state.targetScore = g.state.round * g.state.round * 10
-			g.state.money += g.state.round * 10
-			// Reset machines: keep only End, clear others
-			var endMachine *MachineState
-			for _, ms := range g.state.machines {
-				if ms != nil && ms.Machine.GetType() == MachineEnd {
-					endMachine = ms
-					endMachine.IsPlaced = true
-					endMachine.RunAdded = g.state.runsLeft
-					break
-				}
-			}
-			g.state.machines = make([]*MachineState, gridCols*gridRows)
-			if endMachine != nil {
-				// Place End at a random position
-				endRow := 1 + rand.Intn(displayRows)
-				endCol := 1 + rand.Intn(displayCols)
-				endPos := endRow*gridCols + endCol
-				g.state.machines[endPos] = endMachine
-			}
-			// Reset available machines
-			g.state.inventory = dealMachines(g.state.catalogue, g.state.inventorySize, g.state.runsLeft)
-			g.state.inventorySelected = make([]bool, len(g.state.inventory))
-			g.state.restocksLeft = 3
-		}
-	}
-
-	if g.state.buttons["info"].IsClicked(g.lastInput, g.state.phase) {
-		if g.state.phase == PhaseBuild || g.state.phase == PhaseRoundEnd {
-			g.state.previousPhase = g.state.phase
-			g.state.phase = PhaseInfo
-		}
-	}
-
-	if g.state.buttons["close_info"].IsClicked(g.lastInput, g.state.phase) {
-		g.state.phase = g.state.previousPhase
-	}
-
-	if g.state.phase == PhaseGameOver && g.state.buttons["popup_restart"].IsClicked(g.lastInput, g.state.phase) {
-		// Reset game state
-		g.state = &GameState{
-			phase:          PhaseBuild,
-			money:          10,
-			runsLeft:       6,
-			machines:       make([]*MachineState, gridCols*gridRows),
-			round:          1,
-			animations:     []*Animation{},
-			animationTick:  0,
-			animationSpeed: 1.0,
-			buttons:        make(map[string]*Button),
-			allChanges:     nil,
-			multiplier:     1,
-			roundScore:     0,
-			totalScore:     0,
-			targetScore:    10,
-			gameOver:       false,
-			endRunDelay:    0,
-			previousPhase:  PhaseBuild,
-		}
-		g.initButtons()
-		// Place random End machine
-		endRow := 1 + rand.Intn(displayRows)
-		endCol := 1 + rand.Intn(displayCols)
-		endPos := endRow*gridCols + endCol
-		g.state.machines[endPos] = &MachineState{Machine: &End{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: true, RunAdded: 0, OriginalPos: endPos}
-		g.state.inventory = []*MachineState{
-			{Machine: &Conveyor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-			{Machine: &Processor{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-			{Machine: &Miner{}, Orientation: OrientationEast, BeingDragged: false, IsPlaced: false, RunAdded: 0},
-		}
-	}
+	// Process all button clicks
+	g.processButtons()
 
 	return nil
 } // Draw draws the game screen.
@@ -628,14 +704,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 	}
 
-	// Draw tooltips for hover info
-	g.drawTooltips(screen)
-
-	// Render all buttons
-	for _, button := range g.state.buttons {
-		button.Render(screen, g.state.phase)
-	}
-
 	// Apply CRT effects
 	g.drawScanlines(screen)
 	// Now, draw the vignette overlay on top of everything.
@@ -644,6 +712,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		screen.DrawImage(g.vignetteImage, op)
 	}
 
+	// Render all buttons
+	for _, button := range g.state.buttons {
+		button.Render(screen, g.state)
+	}
 	// Draw game over popup
 	if g.state.phase == PhaseGameOver {
 		popupX := g.screenWidth/2 - 150
@@ -654,7 +726,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		vector.DrawFilledRect(screen, float32(popupX), float32(popupY), float32(popupW), float32(popupH), color.RGBA{R: 0, G: 0, B: 0, A: 0}, true) // Border
 		text.Draw(screen, "Game Over", g.font, popupX+20, popupY+30, color.White)
 		text.Draw(screen, fmt.Sprintf("Final Score: %d", g.state.totalScore), g.font, popupX+20, popupY+60, color.White)
-		g.state.buttons["popup_restart"].Render(screen, g.state.phase)
+		g.state.buttons["popup_restart"].Render(screen, g.state)
 	}
 
 	// Draw info popup
@@ -668,7 +740,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		text.Draw(screen, "Game Info", g.font, popupX+20, popupY+30, color.White)
 		text.Draw(screen, "This is a factory automation game.", g.font, popupX+20, popupY+60, color.White)
 		text.Draw(screen, "Build machines to process objects.", g.font, popupX+20, popupY+80, color.White)
-		g.state.buttons["close_info"].Render(screen, g.state.phase)
+		g.state.buttons["close_info"].Render(screen, g.state)
 	}
 }
 

@@ -73,7 +73,7 @@ func (g *Game) drawInfoBar(screen *ebiten.Image, y int) {
 		if button.States[g.state.phase].Visible {
 			// Check if button is in info bar
 			if button.Y >= y && button.Y < y+barHeight {
-				button.Render(screen, g.state.phase)
+				button.Render(screen, g.state)
 			}
 		}
 	}
