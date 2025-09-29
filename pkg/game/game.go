@@ -157,9 +157,21 @@ func (b *Button) Init(x, y, width, height int, text string, onClick func(g *Game
 // Render draws the button on the screen.
 func (b *Button) Render(screen *ebiten.Image, gameState *GameState) {
 	state := b.States[gameState.phase]
-	if !state.Visible {
+
+	// Check if this button should be visible based on the game state
+	visible := state.Visible
+
+	// Special logic for machine-dependent buttons
+	if b == gameState.buttons["rotate_left"] || b == gameState.buttons["rotate_right"] || b == gameState.buttons["sell"] {
+		// These buttons are visible when a placeable, non-End machine is selected
+		selected := getSelectedMachine(gameState)
+		visible = selected != nil && selected.IsPlaced && selected.Machine.GetType() != MachineEnd
+	}
+
+	if !visible {
 		return
 	}
+
 	btnColor := state.Color
 	if state.Disabled {
 		btnColor = color.RGBA{R: 100, G: 100, B: 100, A: 255}
@@ -176,7 +188,18 @@ func (b *Button) Render(screen *ebiten.Image, gameState *GameState) {
 // IsClicked checks if the button was clicked using the input state.
 func (b *Button) IsClicked(input InputState, gameState *GameState) bool {
 	state := b.States[gameState.phase]
-	if !state.Visible || state.Disabled {
+
+	// Check if this button should be visible based on the game state
+	visible := state.Visible
+
+	// Special logic for machine-dependent buttons
+	if b == gameState.buttons["rotate_left"] || b == gameState.buttons["rotate_right"] || b == gameState.buttons["sell"] {
+		// These buttons are visible when a placeable, non-End machine is selected
+		selected := getSelectedMachine(gameState)
+		visible = selected != nil && selected.IsPlaced && selected.Machine.GetType() != MachineEnd
+	}
+
+	if !visible || state.Disabled {
 		return false
 	}
 	if input.JustPressed {
@@ -215,6 +238,21 @@ func (g *Game) getSelectedMachine() *MachineState {
 		}
 	}
 	for _, ms := range g.state.inventory {
+		if ms != nil && ms.Selected {
+			return ms
+		}
+	}
+	return nil
+}
+
+// getSelectedMachine is a helper function to get selected machine from GameState
+func getSelectedMachine(gameState *GameState) *MachineState {
+	for _, ms := range gameState.machines {
+		if ms != nil && ms.Selected {
+			return ms
+		}
+	}
+	for _, ms := range gameState.inventory {
 		if ms != nil && ms.Selected {
 			return ms
 		}
@@ -582,7 +620,7 @@ func (g *Game) getPos(ms *MachineState) int {
 
 // updateButtonPositions updates dynamic button positions based on selected machines.
 func (g *Game) updateButtonPositions() {
-	selected := g.getSelectedMachine()
+	selected := getSelectedMachine(g.state)
 	if selected == nil || !selected.IsPlaced || selected.Machine.GetType() == MachineEnd {
 		return
 	}
@@ -623,35 +661,6 @@ func (g *Game) updateButtonPositions() {
 	}
 }
 
-// updateButtonVisibility updates dynamic button visibility based on game state.
-func (g *Game) updateButtonVisibility() {
-	selected := g.getSelectedMachine()
-	hasMachineSelected := selected != nil && selected.IsPlaced && selected.Machine.GetType() != MachineEnd
-
-	// Update rotate buttons visibility
-	if rotateLeft, exists := g.state.buttons["rotate_left"]; exists {
-		if state, hasState := rotateLeft.States[g.state.phase]; hasState {
-			state.Visible = hasMachineSelected
-			rotateLeft.States[g.state.phase] = state
-		}
-	}
-
-	if rotateRight, exists := g.state.buttons["rotate_right"]; exists {
-		if state, hasState := rotateRight.States[g.state.phase]; hasState {
-			state.Visible = hasMachineSelected
-			rotateRight.States[g.state.phase] = state
-		}
-	}
-
-	// Update sell button visibility
-	if sellBtn, exists := g.state.buttons["sell"]; exists {
-		if state, hasState := sellBtn.States[g.state.phase]; hasState {
-			state.Visible = hasMachineSelected
-			sellBtn.States[g.state.phase] = state
-		}
-	}
-}
-
 // processButtons processes all button clicks using their individual handlers.
 func (g *Game) processButtons() {
 	for _, button := range g.state.buttons {
@@ -672,8 +681,7 @@ func (g *Game) Update() error {
 		// Handle round end phase
 	}
 
-	// Update button visibility and positions based on current state
-	g.updateButtonVisibility()
+	// Update button positions based on current state
 	g.updateButtonPositions()
 
 	// Process all button clicks
@@ -798,7 +806,11 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	g.width = outsideWidth
 	g.height = outsideHeight
 	g.calculateLayout()
-	g.initButtons()
+
+	// Only initialize buttons if they don't exist yet
+	if len(g.state.buttons) == 0 {
+		g.initButtons()
+	}
 
 	if g.vignetteImage == nil || g.vignetteImage.Bounds().Dx() != outsideWidth || g.vignetteImage.Bounds().Dy() != outsideHeight {
 		// Create the vignette with 50% strength and a falloff of 1.5
