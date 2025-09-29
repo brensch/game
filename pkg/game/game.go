@@ -221,7 +221,7 @@ type Game struct {
 	topPanelY, foremanY, gridStartY, availableY, bottomY                        int
 	screenWidth, gridStartX                                                     int
 	cellSize, gridMargin                                                        int
-	lastSelected                                                                *MachineState
+	// lastSelected                                                                *MachineState
 
 	vignetteImage *ebiten.Image
 	font          font.Face
