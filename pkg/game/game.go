@@ -26,6 +26,8 @@ const (
 	gridRows    = 9
 	displayCols = 7
 	displayRows = 7
+
+	longClickThreshold = 30 // Frames before a click becomes a long click
 )
 
 // ObjectType represents the different kinds of items that can move through the factory.
@@ -121,31 +123,32 @@ func abs(x int) int {
 
 // GameState holds all information about the current state of the game.
 type GameState struct {
-	phase             GamePhase
-	money             int
-	runsLeft          int
-	baseScore         int
-	multiplier        int
-	multMult          int
-	machines          []*MachineState
-	inventory         []*MachineState
-	catalogue         []MachineInterface
-	inventorySize     int
-	restocksLeft      int
-	inventorySelected []bool
-	objects           []*Object
-	round             int
-	animations        []*Animation
-	animationTick     int
-	animationSpeed    float64
-	buttons           map[string]*Button
-	allChanges        [][]*Change
-	roundScore        int
-	totalScore        int
-	targetScore       int
-	gameOver          bool
-	endRunDelay       int
-	previousPhase     GamePhase
+	phase              GamePhase
+	money              int
+	runsLeft           int
+	baseScore          int
+	multiplier         int
+	multMult           int
+	machines           []*MachineState
+	inventory          []*MachineState
+	catalogue          []MachineInterface
+	inventorySize      int
+	restocksLeft       int
+	inventorySelected  []bool
+	objects            []*Object
+	round              int
+	animations         []*Animation
+	animationTick      int
+	animationSpeed     float64
+	buttons            map[string]*Button
+	allChanges         [][]*Change
+	roundScore         int
+	totalScore         int
+	targetScore        int
+	gameOver           bool
+	endRunDelay        int
+	previousPhase      GamePhase
+	longClickedMachine *MachineState
 }
 
 // Game implements ebiten.Game.
@@ -161,6 +164,7 @@ type Game struct {
 	vignetteImage *ebiten.Image
 	font          font.Face
 	lastInput     InputState
+	frameCount    int
 }
 
 func (g *Game) getSelectedMachine() *MachineState {
@@ -543,6 +547,7 @@ func (g *Game) processButtons() {
 
 // Update proceeds the game state.
 func (g *Game) Update() error {
+	g.frameCount++
 	g.GetInput()
 
 	switch g.state.phase {

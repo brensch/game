@@ -7,37 +7,41 @@ import (
 
 // InputState represents the current input state
 type InputState struct {
-	Pressed        bool
-	JustPressed    bool
-	JustReleased   bool
-	X, Y           int
-	IsDragging     bool
-	DragStartX     int
-	DragStartY     int
-	LastTouchCount int
-	TouchPressed   bool
-	LastTouchX     int
-	LastTouchY     int
+	Pressed            bool
+	JustPressed        bool
+	JustReleased       bool
+	X, Y               int
+	IsDragging         bool
+	DragStartX         int
+	DragStartY         int
+	LastTouchCount     int
+	TouchPressed       bool
+	LastTouchX         int
+	LastTouchY         int
+	ClickStartFrame    int
+	LongClickedMachine *MachineState
 }
 
 // getUnifiedInput returns a unified input state that works for both mouse and touch
-func getUnifiedInput(prev InputState) InputState {
+func getUnifiedInput(prev InputState, currentFrame int) InputState {
 	// Check mouse input first
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
 		return InputState{
-			Pressed:        true,
-			JustPressed:    true,
-			JustReleased:   false,
-			X:              x,
-			Y:              y,
-			IsDragging:     false,
-			DragStartX:     x,
-			DragStartY:     y,
-			LastTouchCount: prev.LastTouchCount,
-			TouchPressed:   prev.TouchPressed,
-			LastTouchX:     prev.LastTouchX,
-			LastTouchY:     prev.LastTouchY,
+			Pressed:            true,
+			JustPressed:        true,
+			JustReleased:       false,
+			X:                  x,
+			Y:                  y,
+			IsDragging:         false,
+			DragStartX:         x,
+			DragStartY:         y,
+			LastTouchCount:     prev.LastTouchCount,
+			TouchPressed:       prev.TouchPressed,
+			LastTouchX:         prev.LastTouchX,
+			LastTouchY:         prev.LastTouchY,
+			ClickStartFrame:    currentFrame,
+			LongClickedMachine: nil,
 		}
 	}
 
@@ -50,36 +54,40 @@ func getUnifiedInput(prev InputState) InputState {
 			newIsDragging = true
 		}
 		return InputState{
-			Pressed:        true,
-			JustPressed:    false,
-			JustReleased:   false,
-			X:              x,
-			Y:              y,
-			IsDragging:     newIsDragging,
-			DragStartX:     prev.DragStartX,
-			DragStartY:     prev.DragStartY,
-			LastTouchCount: prev.LastTouchCount,
-			TouchPressed:   prev.TouchPressed,
-			LastTouchX:     prev.LastTouchX,
-			LastTouchY:     prev.LastTouchY,
+			Pressed:            true,
+			JustPressed:        false,
+			JustReleased:       false,
+			X:                  x,
+			Y:                  y,
+			IsDragging:         newIsDragging,
+			DragStartX:         prev.DragStartX,
+			DragStartY:         prev.DragStartY,
+			LastTouchCount:     prev.LastTouchCount,
+			TouchPressed:       prev.TouchPressed,
+			LastTouchX:         prev.LastTouchX,
+			LastTouchY:         prev.LastTouchY,
+			ClickStartFrame:    prev.ClickStartFrame,
+			LongClickedMachine: prev.LongClickedMachine,
 		}
 	}
 
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
 		return InputState{
-			Pressed:        false,
-			JustPressed:    false,
-			JustReleased:   true,
-			X:              x,
-			Y:              y,
-			IsDragging:     false,
-			DragStartX:     prev.DragStartX,
-			DragStartY:     prev.DragStartY,
-			LastTouchCount: prev.LastTouchCount,
-			TouchPressed:   prev.TouchPressed,
-			LastTouchX:     prev.LastTouchX,
-			LastTouchY:     prev.LastTouchY,
+			Pressed:            false,
+			JustPressed:        false,
+			JustReleased:       true,
+			X:                  x,
+			Y:                  y,
+			IsDragging:         false,
+			DragStartX:         prev.DragStartX,
+			DragStartY:         prev.DragStartY,
+			LastTouchCount:     prev.LastTouchCount,
+			TouchPressed:       prev.TouchPressed,
+			LastTouchX:         prev.LastTouchX,
+			LastTouchY:         prev.LastTouchY,
+			ClickStartFrame:    prev.ClickStartFrame,
+			LongClickedMachine: prev.LongClickedMachine,
 		}
 	}
 
@@ -114,53 +122,63 @@ func getUnifiedInput(prev InputState) InputState {
 		if !newIsDragging && dx*dx+dy*dy > 1000 {
 			newIsDragging = true
 		}
+		newClickStartFrame := prev.ClickStartFrame
+		if justPressed {
+			newClickStartFrame = currentFrame
+		}
 		return InputState{
-			Pressed:        true,
-			JustPressed:    justPressed,
-			JustReleased:   false,
-			X:              x,
-			Y:              y,
-			IsDragging:     newIsDragging,
-			DragStartX:     newDragStartX,
-			DragStartY:     newDragStartY,
-			LastTouchCount: currentTouchCount,
-			TouchPressed:   true,
-			LastTouchX:     x,
-			LastTouchY:     y,
+			Pressed:            true,
+			JustPressed:        justPressed,
+			JustReleased:       false,
+			X:                  x,
+			Y:                  y,
+			IsDragging:         newIsDragging,
+			DragStartX:         newDragStartX,
+			DragStartY:         newDragStartY,
+			LastTouchCount:     currentTouchCount,
+			TouchPressed:       true,
+			LastTouchX:         x,
+			LastTouchY:         y,
+			ClickStartFrame:    newClickStartFrame,
+			LongClickedMachine: prev.LongClickedMachine,
 		}
 	}
 
 	if justReleased {
 		return InputState{
-			Pressed:        false,
-			JustPressed:    false,
-			JustReleased:   true,
-			X:              prev.LastTouchX,
-			Y:              prev.LastTouchY,
-			IsDragging:     false,
-			DragStartX:     prev.DragStartX,
-			DragStartY:     prev.DragStartY,
-			LastTouchCount: currentTouchCount,
-			TouchPressed:   false,
-			LastTouchX:     prev.LastTouchX,
-			LastTouchY:     prev.LastTouchY,
+			Pressed:            false,
+			JustPressed:        false,
+			JustReleased:       true,
+			X:                  prev.LastTouchX,
+			Y:                  prev.LastTouchY,
+			IsDragging:         false,
+			DragStartX:         prev.DragStartX,
+			DragStartY:         prev.DragStartY,
+			LastTouchCount:     currentTouchCount,
+			TouchPressed:       false,
+			LastTouchX:         prev.LastTouchX,
+			LastTouchY:         prev.LastTouchY,
+			ClickStartFrame:    prev.ClickStartFrame,
+			LongClickedMachine: prev.LongClickedMachine,
 		}
 	}
 
 	// No input
 	return InputState{
-		Pressed:        false,
-		JustPressed:    false,
-		JustReleased:   false,
-		X:              0,
-		Y:              0,
-		IsDragging:     prev.IsDragging,
-		DragStartX:     prev.DragStartX,
-		DragStartY:     prev.DragStartY,
-		LastTouchCount: prev.LastTouchCount,
-		TouchPressed:   prev.TouchPressed,
-		LastTouchX:     prev.LastTouchX,
-		LastTouchY:     prev.LastTouchY,
+		Pressed:            false,
+		JustPressed:        false,
+		JustReleased:       false,
+		X:                  0,
+		Y:                  0,
+		IsDragging:         prev.IsDragging,
+		DragStartX:         prev.DragStartX,
+		DragStartY:         prev.DragStartY,
+		LastTouchCount:     prev.LastTouchCount,
+		TouchPressed:       prev.TouchPressed,
+		LastTouchX:         prev.LastTouchX,
+		LastTouchY:         prev.LastTouchY,
+		ClickStartFrame:    prev.ClickStartFrame,
+		LongClickedMachine: prev.LongClickedMachine,
 	}
 }
 
@@ -178,5 +196,94 @@ func GetCursorPosition() (int, int) {
 }
 
 func (g *Game) GetInput() {
-	g.lastInput = getUnifiedInput(g.lastInput)
+	g.lastInput = getUnifiedInput(g.lastInput, g.frameCount)
+
+	// Check if we need to clear the long clicked machine on new click
+	if g.lastInput.JustPressed {
+		// Find which machine is being clicked now
+		cx, cy := g.lastInput.X, g.lastInput.Y
+		var clickedMachine *MachineState
+
+		// Check grid machines
+		for pos := 0; pos < gridCols*gridRows; pos++ {
+			ms := g.state.machines[pos]
+			if ms != nil && !ms.BeingDragged && ms.Machine != nil {
+				col := pos % gridCols
+				row := pos / gridCols
+				if row >= 1 && row <= displayRows && col >= 1 && col <= displayCols {
+					x := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin)
+					y := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
+					if cx >= x-15 && cx <= x+g.cellSize+15 && cy >= y-15 && cy <= y+g.cellSize+15 {
+						clickedMachine = ms
+						break
+					}
+				}
+			}
+		}
+
+		// If not on grid, check inventory
+		if clickedMachine == nil {
+			for i, ms := range g.state.inventory {
+				if ms != nil && !ms.BeingDragged && ms.Machine != nil {
+					row := i / 7
+					col := i % 7
+					x := g.gridStartX + col*(g.cellSize+g.gridMargin)
+					y := g.availableY + row*(g.cellSize+g.gridMargin)
+					if cx >= x-15 && cx <= x+g.cellSize+15 && cy >= y-15 && cy <= y+g.cellSize+15 {
+						clickedMachine = ms
+						break
+					}
+				}
+			}
+		}
+
+		// If clicking on a different machine or empty space, clear the long clicked machine
+		if clickedMachine != g.state.longClickedMachine {
+			g.state.longClickedMachine = nil
+		}
+	}
+
+	// Check for long click on machines
+	if g.lastInput.Pressed && !g.lastInput.IsDragging {
+		framesHeld := g.frameCount - g.lastInput.ClickStartFrame
+		if framesHeld >= longClickThreshold {
+			// Find which machine is being clicked
+			cx, cy := g.lastInput.X, g.lastInput.Y
+
+			// Check grid machines
+			for pos := 0; pos < gridCols*gridRows; pos++ {
+				ms := g.state.machines[pos]
+				if ms != nil && !ms.BeingDragged && ms.Machine != nil {
+					col := pos % gridCols
+					row := pos / gridCols
+					if row >= 1 && row <= displayRows && col >= 1 && col <= displayCols {
+						x := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin)
+						y := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
+						if cx >= x-15 && cx <= x+g.cellSize+15 && cy >= y-15 && cy <= y+g.cellSize+15 {
+							g.lastInput.LongClickedMachine = ms
+							g.state.longClickedMachine = ms
+							break
+						}
+					}
+				}
+			}
+
+			// If not on grid, check inventory
+			if g.lastInput.LongClickedMachine == nil {
+				for i, ms := range g.state.inventory {
+					if ms != nil && !ms.BeingDragged && ms.Machine != nil {
+						row := i / 7
+						col := i % 7
+						x := g.gridStartX + col*(g.cellSize+g.gridMargin)
+						y := g.availableY + row*(g.cellSize+g.gridMargin)
+						if cx >= x-15 && cx <= x+g.cellSize+15 && cy >= y-15 && cy <= y+g.cellSize+15 {
+							g.lastInput.LongClickedMachine = ms
+							g.state.longClickedMachine = ms
+							break
+						}
+					}
+				}
+			}
+		}
+	}
 }
