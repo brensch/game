@@ -75,7 +75,10 @@ func (b *Button) Render(screen *ebiten.Image, gameState *GameState) {
 		if state != nil {
 			buttonText = state.Text
 		}
-		text.Draw(screen, buttonText, b.Font, b.X+5, b.Y+b.Height/2+5, color.Black)
+		textWidth := len(buttonText) * 6
+		textX := b.X + (b.Width-textWidth)/2
+		textY := b.Y + b.Height/2 + 5
+		text.Draw(screen, buttonText, b.Font, textX, textY, color.Black)
 	}
 }
 

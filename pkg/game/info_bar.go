@@ -1,12 +1,15 @@
 package game
 
 import (
+	"bytes"
 	"fmt"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
+	"golang.org/x/image/font/gofont/goregular"
 )
 
 func (g *Game) drawInfoBar(screen *ebiten.Image, y int) {
@@ -19,13 +22,15 @@ func (g *Game) drawInfoBar(screen *ebiten.Image, y int) {
 	contentWidth := g.screenWidth - buttonSpace
 	boxWidth := contentWidth / 4
 	rowHeight := barHeight / 2
+	topRowHeight := rowHeight + 5
+	bottomRowHeight := rowHeight - 5
 
 	// Top row: Round | Runs Left | Money | Restocks Left
 	colors := []color.RGBA{
-		{R: 0, G: 100, B: 200, A: 255}, // Blue for Round
-		{R: 0, G: 150, B: 0, A: 255},   // Green for Runs Left
-		{R: 200, G: 150, B: 0, A: 255}, // Gold for Money
-		{R: 200, G: 0, B: 0, A: 255},   // Red for Restocks
+		{R: 135, G: 206, B: 235, A: 255}, // Sky blue for Round
+		{R: 144, G: 238, B: 144, A: 255}, // Light green for Runs Left
+		{R: 255, G: 215, B: 0, A: 255},   // Gold for Money
+		{R: 255, G: 99, B: 71, A: 255},   // Tomato red for Restocks
 	}
 	labels := []string{"Round", "Runs Left", "Money", "Restocks"}
 	values := []string{
@@ -35,30 +40,41 @@ func (g *Game) drawInfoBar(screen *ebiten.Image, y int) {
 		fmt.Sprintf("%d", g.state.restocksLeft),
 	}
 
+	source, err := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
+	if err != nil {
+		panic(err)
+	}
+	face := &text.GoTextFace{Source: source, Size: 20}
+
 	for i := 0; i < 4; i++ {
 		x := buttonSpace + i*boxWidth
 		// Outer colored rectangle
-		vector.DrawFilledRect(screen, float32(x), float32(y), float32(boxWidth), float32(rowHeight), colors[i], false)
+		vector.DrawFilledRect(screen, float32(x), float32(y), float32(boxWidth), float32(topRowHeight), colors[i], false)
 
 		// Label: small text at top
-		labelY := y + 5
+		labelY := y + 2
 		ebitenutil.DebugPrintAt(screen, labels[i], x+10, labelY)
 
 		// Inner black rectangle for number
-		innerWidth := 50
-		innerHeight := 20
+		innerWidth := 60
+		innerHeight := 25
 		innerX := x + (boxWidth-innerWidth)/2
-		innerY := y + 25
+		innerY := y + 15
 		vector.DrawFilledRect(screen, float32(innerX), float32(innerY), float32(innerWidth), float32(innerHeight), color.RGBA{R: 0, G: 0, B: 0, A: 255}, false)
 
-		// Number inside, centered
-		numX := innerX + (innerWidth-len(values[i])*6)/2
-		numY := innerY + 5
-		ebitenutil.DebugPrintAt(screen, values[i], numX, numY)
+		// Number inside, centered, using larger font
+		width, _ := text.Measure(values[i], face, 0)
+		pixelWidth := int(width)
+		numX := innerX + (innerWidth-pixelWidth)/2
+		numY := innerY + innerHeight - 5
+		op := &text.DrawOptions{}
+		op.GeoM.Translate(float64(numX), float64(numY))
+		op.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, values[i], face, op)
 	}
 
 	// Bottom row: Full width progress bar
-	bottomY := y + rowHeight
+	bottomY := y + topRowHeight
 	progressText := fmt.Sprintf("Score %d / Target %d", g.state.totalScore, g.state.targetScore)
 	textWidth := len(progressText) * 6
 	textX := buttonSpace + (contentWidth-textWidth)/2
@@ -67,7 +83,7 @@ func (g *Game) drawInfoBar(screen *ebiten.Image, y int) {
 	// Progress bar
 	barMargin := 10
 	barY := bottomY + 20
-	barHeight2 := rowHeight - 30
+	barHeight2 := bottomRowHeight - 30
 	barLeft := buttonSpace + barMargin
 	barRight := g.screenWidth - barMargin
 	barWidth := barRight - barLeft
