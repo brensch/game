@@ -34,30 +34,59 @@ func (g *Game) handleDragAndDrop() {
 			}
 		}
 		if selectedPos != -1 {
-			col := selectedPos%gridCols - 1
-			row := selectedPos/gridCols - 1
-			if row >= 0 && row < displayRows && col >= 0 && col < displayCols {
-				buttonY := g.gridStartY + (row+1)*(g.cellSize+g.gridMargin) + g.gridMargin
-				buttonX := g.gridStartX + col*(g.cellSize+g.gridMargin) + g.cellSize/2
-				// Rotate buttons
-				g.state.buttons["rotate_left"].X = buttonX - 45
-				g.state.buttons["rotate_left"].Y = buttonY
-				g.state.buttons["rotate_right"].X = buttonX + 5
-				g.state.buttons["rotate_right"].Y = buttonY
-				g.state.buttons["rotate_left"].States[PhaseBuild].Visible = true
-				g.state.buttons["rotate_right"].States[PhaseBuild].Visible = true
-				// Sell button
-				g.state.buttons["sell"].X = buttonX - 40
-				g.state.buttons["sell"].Y = buttonY + 35
+			col := selectedPos % gridCols
+			row := selectedPos / gridCols
+			if row >= 1 && row <= displayRows && col >= 1 && col <= displayCols {
+				// Calculate screen position of the selected machine
+				machineX := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin)
+				machineY := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
+
+				// Position buttons below the selected machine, offset from grid alignment
+				buttonSize := g.cellSize                             // Make buttons bigger (full cell size instead of half)
+				buttonY := machineY + g.cellSize + g.gridMargin + 10 // Extra offset from grid
+
+				// Center the buttons below the machine
+				machineCenterX := machineX + g.cellSize/2
+				totalButtonWidth := 3*buttonSize + 2*5 // 3 buttons + 2 gaps of 5px
+				startX := machineCenterX - totalButtonWidth/2
+
+				// Update rotate left button
+				if rotateLeft, exists := g.state.buttons["rotate_left"]; exists {
+					rotateLeft.X = startX
+					rotateLeft.Y = buttonY
+					rotateLeft.Width = buttonSize
+					rotateLeft.Height = buttonSize
+					rotateLeft.States[PhaseBuild].Visible = true
+				}
+
+				// Update rotate right button
+				if rotateRight, exists := g.state.buttons["rotate_right"]; exists {
+					rotateRight.X = startX + buttonSize + 5
+					rotateRight.Y = buttonY
+					rotateRight.Width = buttonSize
+					rotateRight.Height = buttonSize
+					rotateRight.States[PhaseBuild].Visible = true
+				}
+
+				// Update sell button
+				if sellBtn, exists := g.state.buttons["sell"]; exists {
+					sellBtn.X = startX + 2*buttonSize + 2*5
+					sellBtn.Y = buttonY
+					sellBtn.Width = buttonSize
+					sellBtn.Height = buttonSize
+					sellBtn.States[PhaseBuild].Visible = true
+				}
 			} else {
 				// Hide
 				g.state.buttons["rotate_left"].States[PhaseBuild].Visible = false
 				g.state.buttons["rotate_right"].States[PhaseBuild].Visible = false
+				g.state.buttons["sell"].States[PhaseBuild].Visible = false
 			}
 		} else {
 			// Hide rotate
 			g.state.buttons["rotate_left"].States[PhaseBuild].Visible = false
 			g.state.buttons["rotate_right"].States[PhaseBuild].Visible = false
+			g.state.buttons["sell"].States[PhaseBuild].Visible = false
 		}
 		g.lastSelected = selected
 	}

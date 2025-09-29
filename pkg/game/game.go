@@ -513,9 +513,10 @@ func (g *Game) initButtons() {
 
 	// Rotate counterclockwise button
 	rotateLeftBtn := &Button{}
-	buttonSize := g.cellSize / 2
+	buttonSize := g.cellSize
 	gridRightEdge := g.gridStartX + displayCols*g.cellSize + (displayCols-1)*g.gridMargin
-	counterclockwiseX := gridRightEdge - 2*buttonSize - 5
+	gap := 30
+	counterclockwiseX := gridRightEdge - 2*buttonSize - gap
 	counterclockwiseY := g.availableY + g.cellSize + g.gridMargin + 10
 	rotateLeftBtn.Init(counterclockwiseX, counterclockwiseY, buttonSize, buttonSize, "<-", handleRotateLeftClick)
 	rotateLeftBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
@@ -573,8 +574,10 @@ func (g *Game) initButtons() {
 
 	// Sell button
 	sellBtn := &Button{}
-	sellX := gridRightEdge - 3*buttonSize - 2*5
-	sellBtn.Init(sellX, g.availableY+g.cellSize+g.gridMargin+10, buttonSize, buttonSize, "Sell", handleSellClick)
+	sellWidth := 2*buttonSize + gap
+	sellX := gridRightEdge - sellWidth
+	sellY := counterclockwiseY + buttonSize + gap
+	sellBtn.Init(sellX, sellY, sellWidth, buttonSize, "Sell", handleSellClick)
 	sellBtn.Color = color.RGBA{R: 200, G: 100, B: 100, A: 255} // Red
 	sellBtn.States[PhaseBuild] = &ButtonState{Text: "Sell", Color: color.RGBA{R: 200, G: 100, B: 100, A: 255}, Disabled: false, Visible: false}
 	sellBtn.Font = g.font
@@ -648,60 +651,60 @@ func (g *Game) getPos(ms *MachineState) int {
 	return -1
 }
 
-// updateButtonPositions updates dynamic button positions based on selected machines.
-func (g *Game) updateButtonPositions() {
-	selected := getSelectedMachine(g.state)
-	if selected == nil || !selected.IsPlaced || selected.Machine.GetType() == MachineEnd {
-		return
-	}
+// // updateButtonPositions updates dynamic button positions based on selected machines.
+// func (g *Game) updateButtonPositions() {
+// 	selected := getSelectedMachine(g.state)
+// 	if selected == nil || !selected.IsPlaced || selected.Machine.GetType() == MachineEnd {
+// 		return
+// 	}
 
-	// Find the position of the selected machine
-	for pos, ms := range g.state.machines {
-		if ms == selected {
-			col := pos % gridCols
-			row := pos / gridCols
-			if row >= 1 && row <= displayRows && col >= 1 && col <= displayCols {
-				// Calculate screen position of the selected machine
-				machineX := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin)
-				machineY := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
+// 	// Find the position of the selected machine
+// 	for pos, ms := range g.state.machines {
+// 		if ms == selected {
+// 			col := pos % gridCols
+// 			row := pos / gridCols
+// 			if row >= 1 && row <= displayRows && col >= 1 && col <= displayCols {
+// 				// Calculate screen position of the selected machine
+// 				machineX := g.gridStartX + (col-1)*(g.cellSize+g.gridMargin)
+// 				machineY := g.gridStartY + (row-1)*(g.cellSize+g.gridMargin)
 
-				// Position buttons below the selected machine, offset from grid alignment
-				buttonSize := g.cellSize / 2
-				buttonY := machineY + g.cellSize + g.gridMargin + 10 // Extra offset from grid
+// 				// Position buttons below the selected machine, offset from grid alignment
+// 				buttonSize := g.cellSize / 2
+// 				buttonY := machineY + g.cellSize + g.gridMargin + 10 // Extra offset from grid
 
-				// Center the buttons below the machine
-				machineCenterX := machineX + g.cellSize/2
-				totalButtonWidth := 3*buttonSize + 2*5 // 3 buttons + 2 gaps of 5px
-				startX := machineCenterX - totalButtonWidth/2
+// 				// Center the buttons below the machine
+// 				machineCenterX := machineX + g.cellSize/2
+// 				totalButtonWidth := 3*buttonSize + 2*5 // 3 buttons + 2 gaps of 5px
+// 				startX := machineCenterX - totalButtonWidth/2
 
-				// Update rotate left button
-				if rotateLeft, exists := g.state.buttons["rotate_left"]; exists {
-					rotateLeft.X = startX
-					rotateLeft.Y = buttonY
-					rotateLeft.Width = buttonSize
-					rotateLeft.Height = buttonSize
-				}
+// 				// Update rotate left button
+// 				if rotateLeft, exists := g.state.buttons["rotate_left"]; exists {
+// 					rotateLeft.X = startX
+// 					rotateLeft.Y = buttonY
+// 					rotateLeft.Width = buttonSize
+// 					rotateLeft.Height = buttonSize
+// 				}
 
-				// Update rotate right button
-				if rotateRight, exists := g.state.buttons["rotate_right"]; exists {
-					rotateRight.X = startX + buttonSize + 5
-					rotateRight.Y = buttonY
-					rotateRight.Width = buttonSize
-					rotateRight.Height = buttonSize
-				}
+// 				// Update rotate right button
+// 				if rotateRight, exists := g.state.buttons["rotate_right"]; exists {
+// 					rotateRight.X = startX + buttonSize + 5
+// 					rotateRight.Y = buttonY
+// 					rotateRight.Width = buttonSize
+// 					rotateRight.Height = buttonSize
+// 				}
 
-				// Update sell button
-				if sellBtn, exists := g.state.buttons["sell"]; exists {
-					sellBtn.X = startX + 2*buttonSize + 2*5
-					sellBtn.Y = buttonY
-					sellBtn.Width = buttonSize
-					sellBtn.Height = buttonSize
-				}
-			}
-			break
-		}
-	}
-}
+// 				// Update sell button
+// 				if sellBtn, exists := g.state.buttons["sell"]; exists {
+// 					sellBtn.X = startX + 2*buttonSize + 2*5
+// 					sellBtn.Y = buttonY
+// 					sellBtn.Width = buttonSize
+// 					sellBtn.Height = buttonSize
+// 				}
+// 			}
+// 			break
+// 		}
+// 	}
+// }
 
 // processButtons processes all button clicks using their individual handlers.
 func (g *Game) processButtons() {
@@ -723,8 +726,8 @@ func (g *Game) Update() error {
 		// Handle round end phase
 	}
 
-	// Update button positions based on current state
-	g.updateButtonPositions()
+	// // Update button positions based on current state
+	// g.updateButtonPositions()
 
 	// Process all button clicks
 	g.processButtons()
