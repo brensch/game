@@ -2,7 +2,6 @@ package game
 
 import (
 	"image/color"
-	"math/rand"
 )
 
 func (g *Game) handleRunPhase() {
@@ -82,66 +81,27 @@ func (g *Game) handleRunPhase() {
 			g.state.animationSpeed = 1.0
 			g.state.allChanges = nil
 			g.state.runsLeft--
-			// Move end to random location up to 2 squares away
-			for pos, ms := range g.state.machines {
-				if ms != nil && ms.Machine != nil {
-					roles := ms.Machine.GetRoles()
-					hasConsumer := false
-					for _, role := range roles {
-						if role == RoleConsumer {
-							hasConsumer = true
-							break
-						}
-					}
-					if hasConsumer {
-						currentPos := pos
-						var candidates []int
-						cr := currentPos / gridCols
-						cc := currentPos % gridCols
-						for dr := -2; dr <= 2; dr++ {
-							for dc := -2; dc <= 2; dc++ {
-								if abs(dr)+abs(dc) > 2 || (dr == 0 && dc == 0) {
-									continue
-								}
-								nr := cr + dr
-								nc := cc + dc
-								if nr >= 1 && nr <= displayRows && nc >= 1 && nc <= displayCols {
-									npos := nr*gridCols + nc
-									if g.state.machines[npos] == nil {
-										candidates = append(candidates, npos)
-									}
-								}
-							}
-						}
-						if len(candidates) > 0 {
-							newPos := candidates[rand.Intn(len(candidates))]
-							g.state.machines[newPos] = ms
-							g.state.machines[currentPos] = nil
-						}
-					}
+			// Add run score to total
+			g.state.totalScore += g.state.roundScore * g.state.multiplier
+			g.state.roundScore = 0
+			g.state.multiplier = 1
+			if g.state.runsLeft > 0 {
+				numToDeal := g.state.inventorySize - len(g.state.inventory)
+				if numToDeal > 0 {
+					newMachines := dealMachines(g.state.catalogue, numToDeal, g.state.runsLeft)
+					g.state.inventory = append(g.state.inventory, newMachines...)
+					g.state.inventorySelected = append(g.state.inventorySelected, make([]bool, numToDeal)...)
 				}
-				// Add run score to total
-				g.state.totalScore += g.state.roundScore * g.state.multiplier
-				g.state.roundScore = 0
-				g.state.multiplier = 1
-				if g.state.runsLeft > 0 {
-					numToDeal := g.state.inventorySize - len(g.state.inventory)
-					if numToDeal > 0 {
-						newMachines := dealMachines(g.state.catalogue, numToDeal, g.state.runsLeft)
-						g.state.inventory = append(g.state.inventory, newMachines...)
-						g.state.inventorySelected = append(g.state.inventorySelected, make([]bool, numToDeal)...)
-					}
-				}
-				if g.state.runsLeft == 0 {
-					if g.state.totalScore >= g.state.targetScore {
-						g.state.phase = PhaseRoundEnd
-					} else {
-						g.state.gameOver = true
-						g.state.phase = PhaseGameOver
-					}
+			}
+			if g.state.runsLeft == 0 {
+				if g.state.totalScore >= g.state.targetScore {
+					g.state.phase = PhaseRoundEnd
 				} else {
-					g.state.phase = PhaseBuild
+					g.state.gameOver = true
+					g.state.phase = PhaseGameOver
 				}
+			} else {
+				g.state.phase = PhaseBuild
 			}
 			return
 		}
