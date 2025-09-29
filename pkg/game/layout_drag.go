@@ -1,12 +1,14 @@
 package game
 
 import (
+	"bytes"
 	"fmt"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
+	"golang.org/x/image/font/gofont/goregular"
 )
 
 func (g *Game) drawDragLayout(screen *ebiten.Image) {
@@ -64,10 +66,56 @@ func (g *Game) drawDragLayout(screen *ebiten.Image) {
 	// Draw bottom panel
 	vector.DrawFilledRect(screen, 0, float32(g.bottomY), float32(g.screenWidth), float32(g.bottomHeight), color.RGBA{R: 80, G: 80, B: 80, A: 255}, false)
 
-	// Current Run Score (centered in the middle)
-	scoreText := fmt.Sprintf("Run Score: %d x %d", g.state.roundScore, g.state.multiplier)
-	scoreX := (g.screenWidth - len(scoreText)*6) / 2 // Approximate centering, assuming ~6px per char
-	ebitenutil.DebugPrintAt(screen, scoreText, scoreX, g.bottomY+20)
+	// Current Run Score (centered in the middle) with boxes
+	source, err := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
+	if err != nil {
+		panic(err)
+	}
+	faceLarge := &text.GoTextFace{Source: source, Size: 24}
+	smallBoxW := 60
+	smallBoxH := 40
+	gap := 10
+	xW := 10
+	totalW := smallBoxW + gap + xW + gap + smallBoxW
+	startX := (g.screenWidth - totalW) / 2
+	y := g.bottomY + 10
+	baseBoxX := startX
+	xPos := startX + smallBoxW + gap
+	multBoxX := startX + smallBoxW + gap + xW + gap
+
+	// Score label
+	scoreWidth, _ := text.Measure("Run Score", faceLarge, 0)
+	scoreX := startX - int(scoreWidth) - 20
+	opScore := &text.DrawOptions{}
+	opScore.GeoM.Translate(float64(scoreX), float64(y+8))
+	opScore.ColorScale.ScaleWithColor(color.White)
+	text.Draw(screen, "Run Score", faceLarge, opScore)
+
+	// Base box
+	vector.DrawFilledRect(screen, float32(baseBoxX), float32(y), float32(smallBoxW), float32(smallBoxH), color.RGBA{R: 0, G: 0, B: 0, A: 255}, false)
+
+	// x
+	opX := &text.DrawOptions{}
+	opX.GeoM.Translate(float64(xPos), float64(y+8))
+	opX.ColorScale.ScaleWithColor(color.White)
+	text.Draw(screen, "x", faceLarge, opX)
+
+	// Mult box
+	vector.DrawFilledRect(screen, float32(multBoxX), float32(y), float32(smallBoxW), float32(smallBoxH), color.RGBA{R: 0, G: 0, B: 0, A: 255}, false)
+
+	// Base text
+	baseStr := fmt.Sprintf("%d", g.state.roundScore)
+	opBase := &text.DrawOptions{}
+	opBase.GeoM.Translate(float64(baseBoxX+10), float64(y+8))
+	opBase.ColorScale.ScaleWithColor(color.White)
+	text.Draw(screen, baseStr, faceLarge, opBase)
+
+	// Mult text
+	multStr := fmt.Sprintf("%d", g.state.multiplier)
+	opMult := &text.DrawOptions{}
+	opMult.GeoM.Translate(float64(multBoxX+10), float64(y+8))
+	opMult.ColorScale.ScaleWithColor(color.White)
+	text.Draw(screen, multStr, faceLarge, opMult)
 
 	// Draw info bar at bottom
 	g.drawInfoBar(screen, g.bottomY+g.bottomHeight)
